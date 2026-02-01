@@ -32,21 +32,21 @@ var Index_exports = {};
 __export(Index_exports, {
   Client: () => Client,
   DestroyReason: () => DestroyReason,
-  EvtMan: () => EvtMan,
+  EvtManager: () => EvtManager,
   History: () => History,
   LoopMode: () => LoopMode,
   MemoryHistoryStore: () => MemoryHistoryStore,
   MemoryQueueStore: () => MemoryQueueStore,
   Node: () => Node,
-  NodeMan: () => NodeMan,
+  NodeManager: () => NodeManager,
   PlatformMap: () => PlatformMap,
-  PlayMan: () => PlayMan,
+  PlayManager: () => PlayManager,
   Player: () => Player,
-  QMan: () => QMan,
+  QManager: () => QManager,
   Queue: () => Queue,
   Rest: () => Rest,
   Sock: () => Sock,
-  SrcMan: () => SrcMan,
+  SrcManager: () => SrcManager,
   Voice: () => Voice,
   isUnresolvedTrack: () => isUnresolvedTrack
 });
@@ -226,8 +226,8 @@ var Rest = class {
   }
 };
 
-// src/NodeMan.ts
-var NodeMan = class {
+// src/NodeManager.ts
+var NodeManager = class {
   client;
   nodes;
   constructor(client) {
@@ -612,6 +612,7 @@ var Player = class {
     }
     if (res && res.tracks.length > 0) {
       const track = res.tracks.find((t) => t.info?.uri !== lastTrack.uri) || res.tracks[0];
+      track.isAutoplay = true;
       const queue = this.node.client.queue.get(this.guildId);
       await queue.add(track);
       await this.play();
@@ -643,8 +644,8 @@ var Player = class {
   }
 };
 
-// src/PlayMan.ts
-var PlayMan = class {
+// src/PlayManager.ts
+var PlayManager = class {
   client;
   players;
   constructor(client) {
@@ -685,9 +686,7 @@ var MemoryHistoryStore = class {
   async get(guildId) {
     return this.stores.get(guildId) || [];
   }
-  async push(guildId, metadata) {
-    const history = this.stores.get(guildId) || [];
-    history.push(metadata);
+  async set(guildId, history) {
     this.stores.set(guildId, history);
   }
   async clear(guildId) {
@@ -704,7 +703,7 @@ var History = class {
     this.maxLimit = options.maxLimit || 30;
   }
   async push(track) {
-    if (!track.info) return;
+    if (!track.info || track.isAutoplay) return;
     const metadata = {
       title: track.info.title,
       author: track.info.author,
@@ -720,10 +719,7 @@ var History = class {
     if (history.length > this.maxLimit) {
       history.shift();
     }
-    await this.store.clear(this.guildId);
-    for (const item of history) {
-      await this.store.push(this.guildId, item);
-    }
+    await this.store.set(this.guildId, history);
   }
   async get(max) {
     const history = await this.store.get(this.guildId);
@@ -906,8 +902,8 @@ var Queue = class {
   }
 };
 
-// src/QMan.ts
-var QMan = class {
+// src/QManager.ts
+var QManager = class {
   client;
   queues;
   constructor(client) {
@@ -927,8 +923,8 @@ var QMan = class {
   }
 };
 
-// src/SrcMan.ts
-var SrcMan = class {
+// src/SrcManager.ts
+var SrcManager = class {
   client;
   constructor(client) {
     this.client = client;
@@ -1042,9 +1038,9 @@ var SrcMan = class {
   }
 };
 
-// src/EvtMan.ts
+// src/EvtManager.ts
 var import_events = require("events");
-var EvtMan = class extends import_events.EventEmitter {
+var EvtManager = class extends import_events.EventEmitter {
   client;
   constructor(client) {
     super();
@@ -1076,11 +1072,11 @@ var Client = class {
       defaultSearchPlatform: "ytsearch",
       ...options
     };
-    this.events = new EvtMan(this);
-    this.node = new NodeMan(this);
-    this.play = new PlayMan(this);
-    this.queue = new QMan(this);
-    this.src = new SrcMan(this);
+    this.events = new EvtManager(this);
+    this.node = new NodeManager(this);
+    this.play = new PlayManager(this);
+    this.queue = new QManager(this);
+    this.src = new SrcManager(this);
     this.init();
   }
   init() {
@@ -1147,21 +1143,21 @@ var PlatformMap = {
 0 && (module.exports = {
   Client,
   DestroyReason,
-  EvtMan,
+  EvtManager,
   History,
   LoopMode,
   MemoryHistoryStore,
   MemoryQueueStore,
   Node,
-  NodeMan,
+  NodeManager,
   PlatformMap,
-  PlayMan,
+  PlayManager,
   Player,
-  QMan,
+  QManager,
   Queue,
   Rest,
   Sock,
-  SrcMan,
+  SrcManager,
   Voice,
   isUnresolvedTrack
 });

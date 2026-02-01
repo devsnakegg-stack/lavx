@@ -1,7 +1,7 @@
 import { Client } from './Client';
 import { Queue } from './Queue';
 
-export class QMan {
+export class QManager {
   public readonly client: Client;
   public readonly queues: Map<string, Queue>;
 

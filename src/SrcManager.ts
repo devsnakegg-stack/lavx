@@ -8,7 +8,7 @@ export interface ResolveResult {
   playlistArtworkUrl?: string;
 }
 
-export class SrcMan {
+export class SrcManager {
   public readonly client: Client;
 
   constructor(client: Client) {

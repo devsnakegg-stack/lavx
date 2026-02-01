@@ -3,7 +3,7 @@ import { Sock } from './Sock';
 import { Rest } from './Rest';
 import { Player } from './Player';
 
-export class NodeMan {
+export class NodeManager {
   public readonly client: Client;
   public readonly nodes: Map<string, Node>;
 

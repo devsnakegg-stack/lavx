@@ -1,5 +1,5 @@
 import WebSocket from 'ws';
-import { Node } from './NodeMan';
+import { Node } from './NodeManager';
 
 export class Sock {
   public readonly node: Node;

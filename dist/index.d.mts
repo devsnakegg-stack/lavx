@@ -35,6 +35,7 @@ interface Track {
     src: string;
     requester?: any;
     userData?: any;
+    isAutoplay?: boolean;
 }
 interface UnresolvedTrack extends Partial<Track> {
     resolve: (player: any) => Promise<boolean>;
@@ -47,7 +48,7 @@ interface ResolveResult {
     playlistName?: string;
     playlistArtworkUrl?: string;
 }
-declare class SrcMan {
+declare class SrcManager {
     readonly client: Client;
     constructor(client: Client);
     resolve(input: string, requester?: any): Promise<ResolveResult>;
@@ -91,7 +92,7 @@ declare class Rest {
     updatePlayer(guildId: string, data: any, noReplace?: boolean): Promise<unknown>;
 }
 
-declare class NodeMan {
+declare class NodeManager {
     readonly client: Client;
     readonly nodes: Map<string, Node>;
     constructor(client: Client);
@@ -312,7 +313,7 @@ interface PlayerOptions {
     guildId: string;
     nodeName?: string;
 }
-declare class PlayMan {
+declare class PlayManager {
     readonly client: Client;
     readonly players: Map<string, Player>;
     constructor(client: Client);
@@ -333,13 +334,13 @@ interface HistoryMetadata {
 }
 interface HistoryStore {
     get: (guildId: string) => Promise<HistoryMetadata[]>;
-    push: (guildId: string, metadata: HistoryMetadata) => Promise<void>;
+    set: (guildId: string, history: HistoryMetadata[]) => Promise<void>;
     clear: (guildId: string) => Promise<void>;
 }
 declare class MemoryHistoryStore implements HistoryStore {
     private stores;
     get(guildId: string): Promise<HistoryMetadata[]>;
-    push(guildId: string, metadata: HistoryMetadata): Promise<void>;
+    set(guildId: string, history: HistoryMetadata[]): Promise<void>;
     clear(guildId: string): Promise<void>;
 }
 declare class History {
@@ -406,7 +407,7 @@ declare class Queue {
     load(): Promise<void>;
 }
 
-declare class QMan {
+declare class QManager {
     readonly client: Client;
     readonly queues: Map<string, Queue>;
     constructor(client: Client);
@@ -431,7 +432,7 @@ interface LavxEvents {
     queueEnd: (player: Player) => void;
     raw: (payload: any) => void;
 }
-declare class EvtMan extends EventEmitter {
+declare class EvtManager extends EventEmitter {
     readonly client: Client;
     constructor(client: Client);
     emit<K extends keyof LavxEvents>(event: K, ...args: Parameters<LavxEvents[K]>): boolean;
@@ -456,11 +457,11 @@ interface NodeOptions {
 }
 declare class Client {
     readonly discord: Client$1;
-    readonly node: NodeMan;
-    readonly play: PlayMan;
-    readonly queue: QMan;
-    readonly src: SrcMan;
-    readonly events: EvtMan;
+    readonly node: NodeManager;
+    readonly play: PlayManager;
+    readonly queue: QManager;
+    readonly src: SrcManager;
+    readonly events: EvtManager;
     readonly options: LavxOptions;
     constructor(discord: Client$1, options: LavxOptions);
     private init;
@@ -470,4 +471,4 @@ declare class Client {
 
 declare const PlatformMap: Record<string, string>;
 
-export { Client, DestroyReason, EvtMan, History, type HistoryMetadata, type HistoryStore, type LavxEvents, type LavxOptions, LoopMode, MemoryHistoryStore, MemoryQueueStore, Node, NodeMan, type NodeOptions, PlatformMap, PlayMan, Player, type PlayerOptions, type PluginInfo, QMan, Queue, type QueueStore, type ResolveResult, Rest, Sock, type SourceNames, SrcMan, type StoredQueue, type Track, type TrackInfo, type UnresolvedTrack, Voice, isUnresolvedTrack };
+export { Client, DestroyReason, EvtManager, History, type HistoryMetadata, type HistoryStore, type LavxEvents, type LavxOptions, LoopMode, MemoryHistoryStore, MemoryQueueStore, Node, NodeManager, type NodeOptions, PlatformMap, PlayManager, Player, type PlayerOptions, type PluginInfo, QManager, Queue, type QueueStore, type ResolveResult, Rest, Sock, type SourceNames, SrcManager, type StoredQueue, type Track, type TrackInfo, type UnresolvedTrack, Voice, isUnresolvedTrack };

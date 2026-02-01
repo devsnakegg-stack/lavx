@@ -199,10 +199,15 @@ client.on('messageCreate', async (message: Message) => {
         await queue.move(from - 1, to - 1);
         return message.reply(`Moved track from ${from} to ${to}`);
     }
-    const vc = message.member?.voice.channel;
-    if (!vc) return message.reply('Join a voice channel first');
-    await player.moveToChannel(vc.id);
-    message.reply(`Moved to ${vc.name}`);
+  }
+
+  if (command === 'botmove') {
+      if (!player) return message.reply('No player found');
+      const newChannelId = args[0];
+      if (!newChannelId) return message.reply('Please provide a new channel ID');
+      const oldChannelId = player.voice.channelId;
+      await player.moveToChannel(newChannelId);
+      message.reply(`Moved from <#${oldChannelId}> to <#${newChannelId}>`);
   }
 
   if (command === 'jump') {

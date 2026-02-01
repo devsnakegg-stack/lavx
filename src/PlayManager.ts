@@ -6,7 +6,7 @@ export interface PlayerOptions {
   nodeName?: string;
 }
 
-export class PlayMan {
+export class PlayManager {
   public readonly client: Client;
   public readonly players: Map<string, Player>;
 

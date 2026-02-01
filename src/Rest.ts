@@ -1,5 +1,5 @@
 import { fetch } from 'undici';
-import { Node } from './NodeMan';
+import { Node } from './NodeManager';
 
 export class Rest {
   public readonly node: Node;

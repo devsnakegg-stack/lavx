@@ -1,4 +1,4 @@
-import { Node } from './NodeMan';
+import { Node } from './NodeManager';
 import { Voice } from './Voice';
 import { isUnresolvedTrack, Track } from './Track';
 

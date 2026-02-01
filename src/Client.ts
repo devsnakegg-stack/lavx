@@ -1,10 +1,10 @@
 import { Client as DjsClient } from 'discord.js';
-import { NodeMan } from './NodeMan';
-import { PlayMan } from './PlayMan';
+import { NodeManager } from './NodeManager';
+import { PlayManager } from './PlayManager';
 import { DestroyReason } from './Player';
-import { QMan } from './QMan';
-import { SrcMan } from './SrcMan';
-import { EvtMan } from './EvtMan';
+import { QManager } from './QManager';
+import { SrcManager } from './SrcManager';
+import { EvtManager } from './EvtManager';
 
 export interface LavxOptions {
   nodes: NodeOptions[];
@@ -25,11 +25,11 @@ export interface NodeOptions {
 
 export class Client {
   public readonly discord: DjsClient;
-  public readonly node: NodeMan;
-  public readonly play: PlayMan;
-  public readonly queue: QMan;
-  public readonly src: SrcMan;
-  public readonly events: EvtMan;
+  public readonly node: NodeManager;
+  public readonly play: PlayManager;
+  public readonly queue: QManager;
+  public readonly src: SrcManager;
+  public readonly events: EvtManager;
   public readonly options: LavxOptions;
 
   constructor(discord: DjsClient, options: LavxOptions) {
@@ -39,11 +39,11 @@ export class Client {
       ...options,
     };
 
-    this.events = new EvtMan(this);
-    this.node = new NodeMan(this);
-    this.play = new PlayMan(this);
-    this.queue = new QMan(this);
-    this.src = new SrcMan(this);
+    this.events = new EvtManager(this);
+    this.node = new NodeManager(this);
+    this.play = new PlayManager(this);
+    this.queue = new QManager(this);
+    this.src = new SrcManager(this);
 
     this.init();
   }

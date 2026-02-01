@@ -124,7 +124,7 @@ export class Queue {
       // In a real system, we'd need to resolve the URI back to a Track object
       // But here we might just have metadata.
       // User said "Play previous track".
-      // I'll need to use SrcMan to resolve the URI again.
+      // I'll need to use SrcManager to resolve the URI again.
       // For now, I'll just mark it as something the Player should handle.
       // Or maybe the history should store the 'track' (encoded) too?
       // User said "Metadata-only storage".

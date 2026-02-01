@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { Client } from './Client';
-import { Node } from './NodeMan';
+import { Node } from './NodeManager';
 import { Player, DestroyReason } from './Player';
 import { Track } from './Track';
 
@@ -22,7 +22,7 @@ export interface LavxEvents {
   raw: (payload: any) => void;
 }
 
-export class EvtMan extends EventEmitter {
+export class EvtManager extends EventEmitter {
   public readonly client: Client;
 
   constructor(client: Client) {
