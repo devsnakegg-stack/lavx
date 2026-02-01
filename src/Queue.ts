@@ -182,13 +182,6 @@ export class Queue {
     return track;
   }
 
-  public find(query: string) {
-    return this.tracks.filter(t =>
-      t.info?.title?.toLowerCase().includes(query.toLowerCase()) ||
-      t.info?.author?.toLowerCase().includes(query.toLowerCase())
-    );
-  }
-
   private async save() {
     await this.store.set(this.guildId, {
       current: this.current,

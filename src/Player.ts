@@ -338,6 +338,7 @@ export class Player {
 
     if (res && res.tracks.length > 0) {
       const track = res.tracks.find(t => t.info?.uri !== lastTrack.uri) || res.tracks[0];
+      track.isAutoplay = true;
       const queue = this.node.client.queue.get(this.guildId);
       await queue.add(track);
       await this.play();

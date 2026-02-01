@@ -12,7 +12,7 @@ export interface HistoryMetadata {
 
 export interface HistoryStore {
     get: (guildId: string) => Promise<HistoryMetadata[]>;
-    push: (guildId: string, metadata: HistoryMetadata) => Promise<void>;
+    set: (guildId: string, history: HistoryMetadata[]) => Promise<void>;
     clear: (guildId: string) => Promise<void>;
 }
 
@@ -23,9 +23,7 @@ export class MemoryHistoryStore implements HistoryStore {
         return this.stores.get(guildId) || [];
     }
 
-    async push(guildId: string, metadata: HistoryMetadata) {
-        const history = this.stores.get(guildId) || [];
-        history.push(metadata);
+    async set(guildId: string, history: HistoryMetadata[]) {
         this.stores.set(guildId, history);
     }
 
@@ -46,7 +44,7 @@ export class History {
     }
 
     public async push(track: Track) {
-        if (!track.info) return;
+        if (!track.info || track.isAutoplay) return;
 
         const metadata: HistoryMetadata = {
             title: track.info.title,
@@ -70,14 +68,7 @@ export class History {
             history.shift();
         }
 
-        // We save the modified array back to the store
-        // My MemoryHistoryStore.push actually pushes to the internal array,
-        // but for general stores we might need to overwrite.
-        // Let's refine HistoryStore interface.
-        await this.store.clear(this.guildId);
-        for (const item of history) {
-            await this.store.push(this.guildId, item);
-        }
+        await this.store.set(this.guildId, history);
     }
 
     public async get(max?: number): Promise<HistoryMetadata[]> {

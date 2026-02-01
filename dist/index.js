@@ -715,7 +715,7 @@ var History = class {
       requester: track.requester
     };
     const history = await this.store.get(this.guildId);
-    if (history.length > 0 && history[history.length - 1].uri === metadata.uri) return;
+    if (history.some((h) => h.uri === metadata.uri)) return;
     history.push(metadata);
     if (history.length > this.maxLimit) {
       history.shift();
@@ -890,11 +890,6 @@ var Queue = class {
     const track = this.tracks.splice(index, 1)[0];
     await this.save();
     return track;
-  }
-  find(query) {
-    return this.tracks.filter(
-      (t) => t.info?.title?.toLowerCase().includes(query.toLowerCase()) || t.info?.author?.toLowerCase().includes(query.toLowerCase())
-    );
   }
   async save() {
     await this.store.set(this.guildId, {

@@ -171,6 +171,7 @@
                 <li><a href="#queue"><i data-lucide="list-music"></i> Advanced Queue</a></li>
                 <li><a href="#history"><i data-lucide="history"></i> History System</a></li>
                 <li><a href="#smart"><i data-lucide="brain"></i> Smart Systems</a></li>
+                <li><a href="#source"><i data-lucide="search"></i> Multiplatform</a></li>
             </ul>
         </nav>
     </aside>
@@ -181,58 +182,126 @@
             <p>Advanced, professional-grade Lavalink client for Discord.js.</p>
         </section>
 
+        <section id="setup">
+            <h2>Setup</h2>
+            <pre>npm install lavx discord.js ws undici</pre>
+            <p>Initialize the client with your Discord.js instance and Lavalink node details.</p>
+        </section>
+
         <section id="player">
-            <h2>Music Control</h2>
+            <h2>Music Control API</h2>
             <div class="bubble">
-                <div class="method-info"><span class="method-name">.rewind / .forward</span><span class="method-params">(ms)</span></div>
-                <p>Jump back or ahead in the current track.</p>
+                <div class="method-info"><span class="method-name">.play() / .stop()</span></div>
+                <p>Standard playback control.</p>
             </div>
             <div class="bubble">
-                <div class="method-info"><span class="method-name">.fadeIn / .fadeOut</span><span class="method-params">(ms)</span></div>
-                <p>Smoothly transition audio volume.</p>
+                <div class="method-info"><span class="method-name">.pause() / .resume()</span></div>
+                <p>Pause and resume track playback.</p>
             </div>
             <div class="bubble">
-                <div class="method-info"><span class="method-name">.bassboost / .nightcore / .vaporwave</span><span class="method-params">()</span></div>
-                <p>Instantly apply popular audio filters.</p>
+                <div class="method-info"><span class="method-name">.seek() / .restart()</span><span class="method-params">(ms)</span></div>
+                <p>Change position or start the track over.</p>
             </div>
             <div class="bubble">
-                <div class="method-info"><span class="method-name">.balance / .mono / .stereo</span><span class="method-params">()</span></div>
-                <p>Fine-grained control over audio channels.</p>
+                <div class="method-info"><span class="method-name">.rewind() / .forward()</span><span class="method-params">(ms)</span></div>
+                <p>Skip backward or forward by a specified amount.</p>
+            </div>
+            <div class="bubble">
+                <div class="method-info"><span class="method-name">.fadeIn() / .fadeOut()</span><span class="method-params">(ms)</span></div>
+                <p>Volume transition effects.</p>
+            </div>
+            <div class="bubble">
+                <div class="method-info"><span class="method-name">.setEQ() / .setFilters()</span></div>
+                <p>Full Lavalink filter support.</p>
+            </div>
+            <div class="bubble">
+                <div class="method-info"><span class="method-name">.clearFilters()</span></div>
+                <p>Reset all applied audio effects.</p>
+            </div>
+            <div class="bubble">
+                <div class="method-info"><span class="method-name">.balance() / .mono() / .stereo()</span></div>
+                <p>Channel mixing and spatial control.</p>
+            </div>
+            <div class="bubble">
+                <div class="method-info"><span class="method-name">.bassboost() / .nightcore() / .vaporwave()</span></div>
+                <p>Instant filter presets.</p>
             </div>
         </section>
 
         <section id="queue">
-            <h2>Advanced Queue</h2>
+            <h2>Advanced Queue API</h2>
             <div class="bubble">
-                <div class="method-info"><span class="method-name">.jump</span><span class="method-params">(index)</span></div>
-                <p>Instantly play a track at a specific position.</p>
+                <div class="method-info"><span class="method-name">.add() / .addNext()</span></div>
+                <p>Add tracks to the end or start of the queue.</p>
             </div>
             <div class="bubble">
-                <div class="method-info"><span class="method-name">.move / .swap</span><span class="method-params">(from, to)</span></div>
-                <p>Reorganize your queue with ease.</p>
+                <div class="method-info"><span class="method-name">.insert()</span><span class="method-params">(index, track)</span></div>
+                <p>Place a track at a specific position.</p>
             </div>
             <div class="bubble">
-                <div class="method-info"><span class="method-name">.dedupe</span><span class="method-params">()</span></div>
-                <p>Clean up duplicate tracks from your queue.</p>
+                <div class="method-info"><span class="method-name">.jump()</span><span class="method-params">(index)</span></div>
+                <p>Instantly switch to a track in the queue.</p>
+            </div>
+            <div class="bubble">
+                <div class="method-info"><span class="method-name">.move() / .swap()</span></div>
+                <p>Reorder the upcoming tracks.</p>
+            </div>
+            <div class="bubble">
+                <div class="method-info"><span class="method-name">.dedupe()</span></div>
+                <p>Remove all duplicate tracks automatically.</p>
+            </div>
+            <div class="bubble">
+                <div class="method-info"><span class="method-name">.shuffle() / .clear()</span></div>
+                <p>Manage the entire list of tracks.</p>
+            </div>
+            <div class="bubble">
+                <div class="method-info"><span class="method-name">.previous()</span></div>
+                <p>Retrieve the last played track metadata.</p>
             </div>
         </section>
 
         <section id="history">
-            <h2>History System</h2>
-            <p>A memory-safe ring buffer for tracking recently played tracks.</p>
+            <h2>Safe History System</h2>
+            <p>Metadata-only storage for high performance and low memory footprint.</p>
             <div class="bubble">
-                <p><code>history.get(max)</code>: Retrieve last tracks.</p>
-                <p><code>history.last()</code>: Get the most recent track metadata.</p>
-                <p><code>history.size()</code>: Current history count.</p>
+                <div class="method-info"><span class="method-name">.get()</span><span class="method-params">(limit)</span></div>
+                <p>Retrieve up to X recent tracks.</p>
+            </div>
+            <div class="bubble">
+                <div class="method-info"><span class="method-name">.last() / .size()</span></div>
+                <p>Quick stats about your history.</p>
+            </div>
+            <div class="bubble">
+                <div class="method-info"><span class="method-name">.clear()</span></div>
+                <p>Wipe the history clean.</p>
             </div>
         </section>
 
         <section id="smart">
             <h2>Smart Systems</h2>
             <div class="grid">
-                <div class="bubble"><div class="tag">AutoRecover</div><p>Resumes playback automatically after crashes.</p></div>
-                <div class="bubble"><div class="tag">PreloadNext</div><p>Resolves the next track metadata before it starts.</p></div>
-                <div class="bubble"><div class="tag">Gapless</div><p>Optimized transitions between tracks.</p></div>
+                <div class="bubble"><div class="tag">Autoplay</div><p>Smart recommendations from YT, Spotify, Apple, Deezer.</p></div>
+                <div class="bubble"><div class="tag">AutoRecover</div><p>Session recovery after Lavalink or bot crashes.</p></div>
+                <div class="bubble"><div class="tag">AutoResume</div><p>Resume playback after temporary network disconnects.</p></div>
+                <div class="bubble"><div class="tag">PreloadNext</div><p>Resolve upcoming metadata before the current track ends.</p></div>
+                <div class="bubble"><div class="tag">Gapless</div><p>Eliminate silence between tracks for a seamless experience.</p></div>
+                <div class="bubble"><div class="tag">SmartBuffer</div><p>Adaptive buffering based on network stability.</p></div>
+            </div>
+        </section>
+
+        <section id="source">
+            <h2>Multiplatform Control</h2>
+            <div class="bubble">
+                <div class="method-info"><span class="method-name">.detectSource()</span><span class="method-params">(url)</span></div>
+                <p>Identify the platform (Spotify, YouTube, etc.) from a URL.</p>
+            </div>
+            <div class="bubble">
+                <div class="method-info"><span class="method-name">.fallbackSearch()</span></div>
+                <p>Secondary search attempt if primary resolution fails.</p>
+            </div>
+            <div class="bubble">
+                <div class="method-info"><span class="method-name">.bestSource()</span></div>
+                <p>Select the highest quality audio source available.</p>
             </div>
         </section>
     </main>

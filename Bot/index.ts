@@ -179,6 +179,18 @@ client.on('messageCreate', async (message: Message) => {
     message.reply(`**Node Status:**\n${status}`);
   }
 
+  if (command === 'gapless') {
+      if (!player) return message.reply('No player found');
+      player.options.gapless = !player.options.gapless;
+      message.reply(`Gapless playback is now ${player.options.gapless ? 'enabled' : 'disabled'}`);
+  }
+
+  if (command === 'smartbuffer') {
+      if (!player) return message.reply('No player found');
+      player.options.smartBuffer = !player.options.smartBuffer;
+      message.reply(`Smart buffering is now ${player.options.smartBuffer ? 'enabled' : 'disabled'}`);
+  }
+
   if (command === 'move') {
     if (!player) return message.reply('No player found');
     const from = parseInt(args[0]);
@@ -202,6 +214,47 @@ client.on('messageCreate', async (message: Message) => {
       message.reply(`Jumped to track ${index}`);
   }
 
+  if (command === 'insert') {
+      if (!player) return message.reply('No player found');
+      const index = parseInt(args[0]);
+      const query = args.slice(1).join(' ');
+      if (isNaN(index) || !query) return message.reply('Usage: !insert <index> <query>');
+      const res = await lavx.playInput(message.guild!.id, query, message.author);
+      if (res && res.tracks.length) {
+          await queue.insert(index - 1, res.tracks[0]);
+          message.reply(`Inserted **${res.tracks[0].info?.title}** at position ${index}`);
+      } else {
+          message.reply('No results found');
+      }
+  }
+
+  if (command === 'addnext') {
+      const query = args.join(' ');
+      if (!query) return message.reply('Please provide an input');
+      const res = await lavx.playInput(message.guild!.id, query, message.author);
+      if (res && res.tracks.length) {
+          await queue.addNext(res.tracks[0]);
+          message.reply(`Added **${res.tracks[0].info?.title}** to play next`);
+      } else {
+          message.reply('No results found');
+      }
+  }
+
+  if (command === 'swap') {
+      if (!player) return message.reply('No player found');
+      const i1 = parseInt(args[0]);
+      const i2 = parseInt(args[1]);
+      if (isNaN(i1) || isNaN(i2)) return message.reply('Invalid indices');
+      await queue.swap(i1 - 1, i2 - 1);
+      message.reply(`Swapped tracks ${i1} and ${i2}`);
+  }
+
+  if (command === 'dedupe') {
+      if (!player) return message.reply('No player found');
+      await queue.dedupe();
+      message.reply('Queue deduped');
+  }
+
   if (command === 'history') {
       const history = await queue.history.get();
       if (!history.length) return message.reply('History is empty');
@@ -216,10 +269,28 @@ client.on('messageCreate', async (message: Message) => {
       message.reply(`Bassboost set to level ${level}`);
   }
 
+  if (command === 'nightcore') {
+      if (!player) return message.reply('No player found');
+      await player.nightcore();
+      message.reply('Nightcore enabled');
+  }
+
+  if (command === 'vaporwave') {
+      if (!player) return message.reply('No player found');
+      await player.vaporwave();
+      message.reply('Vaporwave enabled');
+  }
+
   if (command === 'fadein') {
       if (!player) return message.reply('No player found');
       await player.fadeIn(5000);
       message.reply('Fading in (5s)...');
+  }
+
+  if (command === 'fadeout') {
+      if (!player) return message.reply('No player found');
+      await player.fadeOut(5000);
+      message.reply('Fading out (5s)...');
   }
 
   if (command === 'rewind') {
@@ -234,6 +305,56 @@ client.on('messageCreate', async (message: Message) => {
       message.reply('Forwarded 10s');
   }
 
+  if (command === 'restart') {
+      if (!player) return message.reply('No player found');
+      await player.restart();
+      message.reply('Restarted track');
+  }
+
+  if (command === 'clearfilters') {
+      if (!player) return message.reply('No player found');
+      await player.clearFilters();
+      message.reply('Filters cleared');
+  }
+
+  if (command === 'balance') {
+      if (!player) return message.reply('No player found');
+      const left = parseFloat(args[0]) || 0.5;
+      const right = parseFloat(args[1]) || 0.5;
+      await player.balance(left, right);
+      message.reply(`Balance set to L:${left} R:${right}`);
+  }
+
+  if (command === 'mono') {
+      if (!player) return message.reply('No player found');
+      await player.mono();
+      message.reply('Mono output enabled');
+  }
+
+  if (command === 'stereo') {
+      if (!player) return message.reply('No player found');
+      await player.stereo();
+      message.reply('Stereo output enabled');
+  }
+
+  if (command === 'autorecover') {
+      if (!player) return message.reply('No player found');
+      await player.autoRecover();
+      message.reply(`Auto-recover is now ${player.options.autoRecover ? 'enabled' : 'disabled'}`);
+  }
+
+  if (command === 'autoresume') {
+      if (!player) return message.reply('No player found');
+      await player.autoResume();
+      message.reply(`Auto-resume is now ${player.options.autoResume ? 'enabled' : 'disabled'}`);
+  }
+
+  if (command === 'preload') {
+      if (!player) return message.reply('No player found');
+      await player.preloadNext();
+      message.reply('Preloading next track...');
+  }
+
   if (command === 'queue') {
     const sub = args[0]?.toLowerCase();
     if (sub === 'clear') {
@@ -244,10 +365,6 @@ client.on('messageCreate', async (message: Message) => {
         if (isNaN(index)) return message.reply('Invalid index');
         const removed = await queue.remove(index - 1);
         message.reply(removed ? `Removed ${removed.info?.title || 'Unknown'}` : 'Track not found');
-    } else if (sub === 'find') {
-        const q = args.slice(1).join(' ');
-        const found = queue.find(q);
-        message.reply(`Found ${found.length} tracks:\n${found.map(t => t.info?.title || 'Unknown').join('\n').slice(0, 1000)}`);
     } else {
         const list = queue.tracks.map((t, i) => `${i + 1}. ${t.info?.title || 'Unknown'}`).join('\n') || 'Empty';
         message.reply(`**Current:** ${queue.current?.info?.title || 'None'}\n**Upcoming:**\n${list.slice(0, 1500)}`);

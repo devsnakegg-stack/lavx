@@ -38,6 +38,7 @@ export interface Track {
   src: string;
   requester?: any;
   userData?: any;
+  isAutoplay?: boolean;
 }
 
 export interface UnresolvedTrack extends Partial<Track> {

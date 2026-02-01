@@ -402,7 +402,6 @@ declare class Queue {
     shuffle(): Promise<void>;
     clear(): Promise<void>;
     remove(index: number): Promise<Track | UnresolvedTrack | null>;
-    find(query: string): (Track | UnresolvedTrack)[];
     private save;
     load(): Promise<void>;
 }
