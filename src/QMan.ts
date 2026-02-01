@@ -13,7 +13,7 @@ export class QMan {
   public get(guildId: string) {
     let queue = this.queues.get(guildId);
     if (!queue) {
-      queue = new Queue();
+      queue = new Queue(guildId);
       this.queues.set(guildId, queue);
     }
     return queue;

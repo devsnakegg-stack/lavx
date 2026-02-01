@@ -116,6 +116,13 @@ export class Sock {
 
   private reconnect() {
     if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
+
+    const maxAttempts = this.node.client.options.maxReconnectAttempts || 10;
+    if (this.reconnectAttempts >= maxAttempts) {
+      this.node.client.node.handleNodeFailure(this.node);
+      return;
+    }
+
     this.reconnectAttempts++;
     this.reconnectTimeout = setTimeout(() => {
       this.node.client.events.emit('nodeReconnect', this.node);

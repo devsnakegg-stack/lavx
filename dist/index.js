@@ -31,8 +31,10 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var Index_exports = {};
 __export(Index_exports, {
   Client: () => Client,
+  DestroyReason: () => DestroyReason,
   EvtMan: () => EvtMan,
   LoopMode: () => LoopMode,
+  MemoryQueueStore: () => MemoryQueueStore,
   Node: () => Node,
   NodeMan: () => NodeMan,
   PlatformMap: () => PlatformMap,
@@ -43,7 +45,8 @@ __export(Index_exports, {
   Rest: () => Rest,
   Sock: () => Sock,
   SrcMan: () => SrcMan,
-  Voice: () => Voice
+  Voice: () => Voice,
+  isUnresolvedTrack: () => isUnresolvedTrack
 });
 module.exports = __toCommonJS(Index_exports);
 
@@ -147,6 +150,11 @@ var Sock = class {
   }
   reconnect() {
     if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
+    const maxAttempts = this.node.client.options.maxReconnectAttempts || 10;
+    if (this.reconnectAttempts >= maxAttempts) {
+      this.node.client.node.handleNodeFailure(this.node);
+      return;
+    }
     this.reconnectAttempts++;
     this.reconnectTimeout = setTimeout(() => {
       this.node.client.events.emit("nodeReconnect", this.node);
@@ -252,6 +260,9 @@ var NodeMan = class {
       await player.moveToNode(targetNode);
     }
   }
+  async handleNodeFailure(node) {
+    await this.migrate(node);
+  }
 };
 var Node = class {
   client;
@@ -311,7 +322,20 @@ var Voice = class {
   }
 };
 
+// src/Track.ts
+function isUnresolvedTrack(track) {
+  return typeof track.resolve === "function";
+}
+
 // src/Player.ts
+var DestroyReason = /* @__PURE__ */ ((DestroyReason2) => {
+  DestroyReason2["ChannelDeleted"] = "CHANNEL_DELETED";
+  DestroyReason2["Disconnected"] = "DISCONNECTED";
+  DestroyReason2["PlayerDestroyed"] = "PLAYER_DESTROYED";
+  DestroyReason2["NodeDestroyed"] = "NODE_DESTROYED";
+  DestroyReason2["LoadFailed"] = "LOAD_FAILED";
+  return DestroyReason2;
+})(DestroyReason || {});
 var Player = class {
   node;
   guildId;
@@ -333,6 +357,17 @@ var Player = class {
   }
   async play(options = {}) {
     const queue = this.node.client.queue.get(this.guildId);
+    if (!options.track && (!queue.current || isUnresolvedTrack(queue.current))) {
+      const next = queue.current || queue.tracks[0];
+      if (next && isUnresolvedTrack(next)) {
+        const resolved = await next.resolve(this);
+        if (!resolved) {
+          queue.tracks.shift();
+          return this.onTrackEnd({ reason: "loadFailed" });
+        }
+        if (!queue.current) queue.current = queue.tracks.shift();
+      }
+    }
     const track = options.track || queue.current?.track;
     if (!track) throw new Error("No track to play");
     await this.node.rest.updatePlayer(this.guildId, {
@@ -364,7 +399,26 @@ var Player = class {
   }
   async setFilters(filters) {
     await this.node.rest.updatePlayer(this.guildId, { filters });
-    this.filters = filters;
+    this.filters = { ...this.filters, ...filters };
+  }
+  async setAudioOutput(output) {
+    const channelMix = {
+      leftToLeft: 1,
+      leftToRight: 0,
+      rightToLeft: 0,
+      rightToRight: 1
+    };
+    if (output === "left") {
+      channelMix.rightToLeft = 1;
+      channelMix.rightToRight = 0;
+    } else if (output === "right") {
+      channelMix.leftToLeft = 0;
+      channelMix.leftToRight = 1;
+    } else if (output === "mono") {
+      channelMix.leftToRight = 1;
+      channelMix.rightToLeft = 1;
+    }
+    await this.setFilters({ channelMix });
   }
   async moveToNode(toNode) {
     if (this.node === toNode) return;
@@ -404,7 +458,7 @@ var Player = class {
     this.playing = false;
     if (payload.reason !== "replaced" && payload.reason !== "stopped") {
       const queue = this.node.client.queue.get(this.guildId);
-      if (queue.next()) {
+      if (await queue.next()) {
         await this.play();
       } else if (queue.autoplay && queue.previous.length > 0) {
         await this.handleAutoplay(queue.previous[queue.previous.length - 1]);
@@ -434,23 +488,35 @@ var Player = class {
       res = await this.node.client.src.resolve(`${defaultSearch}:${lastTrack.info.author} ${lastTrack.info.title} related`);
     }
     if (res && res.tracks.length > 0) {
-      const track = res.tracks.find((t) => t.info.identifier !== lastTrack.info.identifier) || res.tracks[0];
+      const track = res.tracks.find((t) => t.info?.identifier !== lastTrack.info.identifier) || res.tracks[0];
       const queue = this.node.client.queue.get(this.guildId);
-      queue.add(track);
+      await queue.add(track);
       await this.play();
     } else {
       this.node.client.events.emit("queueEnd", this);
     }
   }
   filterPresets = {
-    bassboost: { equalizer: [{ band: 0, gain: 0.6 }, { band: 1, gain: 0.67 }, { band: 2, gain: 0.67 }, { band: 3, gain: 0 }] },
+    bassboost: { equalizer: [{ band: 0, gain: 0.6 }, { band: 1, gain: 0.67 }, { band: 2, gain: 0.67 }] },
     nightcore: { timescale: { speed: 1.1, pitch: 1.2, rate: 1 } },
     vaporwave: { timescale: { speed: 0.85, pitch: 0.8 } },
-    pop: { equalizer: [{ band: 0, gain: 0.65 }, { band: 1, gain: 0.45 }, { band: 2, gain: -0.45 }, { band: 3, gain: -0.65 }, { band: 4, gain: 0.7 }, { band: 5, gain: 0.45 }, { band: 6, gain: 0.45 }, { band: 7, gain: 0.45 }, { band: 8, gain: 0.45 }, { band: 9, gain: 0.45 }, { band: 10, gain: 0.45 }, { band: 11, gain: 0.45 }, { band: 12, gain: 0.45 }, { band: 13, gain: 0.45 }, { band: 14, gain: 0.45 }] },
-    soft: { equalizer: [{ band: 0, gain: 0 }, { band: 1, gain: 0 }, { band: 2, gain: 0 }, { band: 3, gain: 0 }, { band: 4, gain: 0 }, { band: 5, gain: 0 }, { band: 6, gain: 0 }, { band: 7, gain: 0 }, { band: 8, gain: -0.25 }, { band: 9, gain: -0.25 }, { band: 10, gain: -0.25 }, { band: 11, gain: -0.25 }, { band: 12, gain: -0.25 }, { band: 13, gain: -0.25 }, { band: 14, gain: -0.25 }] }
+    pop: { equalizer: [{ band: 0, gain: 0.65 }, { band: 1, gain: 0.45 }, { band: 2, gain: -0.45 }, { band: 3, gain: -0.65 }, { band: 4, gain: 0.7 }, { band: 5, gain: 0.45 }] },
+    soft: { equalizer: [{ band: 0, gain: 0 }, { band: 8, gain: -0.25 }] },
+    electronic: { equalizer: [{ band: 0, gain: 0.375 }, { band: 1, gain: 0.35 }, { band: 2, gain: 0.125 }, { band: 5, gain: -0.125 }, { band: 6, gain: -0.125 }] },
+    dance: { equalizer: [{ band: 0, gain: 0.6 }, { band: 1, gain: 0.7 }, { band: 2, gain: 0.2 }, { band: 3, gain: 0 }, { band: 4, gain: 0 }, { band: 5, gain: -0.2 }, { band: 6, gain: -0.5 }, { band: 7, gain: -0.5 }] },
+    classical: { equalizer: [{ band: 0, gain: -0.25 }, { band: 1, gain: -0.25 }, { band: 2, gain: -0.25 }, { band: 3, gain: -0.25 }, { band: 4, gain: -0.25 }, { band: 5, gain: -0.25 }, { band: 6, gain: 0 }, { band: 7, gain: 0.25 }, { band: 8, gain: 0.25 }, { band: 9, gain: 0.25 }, { band: 10, gain: 0.25 }, { band: 11, gain: 0.25 }, { band: 12, gain: 0.25 }, { band: 13, gain: 0.25 }, { band: 14, gain: 0.25 }] },
+    rock: { equalizer: [{ band: 0, gain: 0.3 }, { band: 1, gain: 0.25 }, { band: 2, gain: 0.2 }, { band: 3, gain: 0.1 }, { band: 4, gain: 0.05 }, { band: 5, gain: -0.05 }, { band: 6, gain: -0.15 }, { band: 7, gain: -0.2 }, { band: 8, gain: -0.25 }, { band: 9, gain: -0.25 }] },
+    fullbass: { equalizer: [{ band: 0, gain: 0.25 }, { band: 1, gain: 0.5 }, { band: 2, gain: 0.75 }, { band: 3, gain: 1 }, { band: 4, gain: 0.5 }, { band: 5, gain: 0.25 }] },
+    karaoke: { karaoke: { level: 1, monoLevel: 1, filterBand: 220, filterWidth: 100 } },
+    tremolo: { tremolo: { frequency: 2, depth: 0.5 } },
+    vibrato: { vibrato: { frequency: 2, depth: 0.5 } },
+    rotation: { rotation: { rotationHz: 0.2 } },
+    distortion: { distortion: { sinOffset: 0, sinScale: 1, cosOffset: 0, cosScale: 1, tanOffset: 0, tanScale: 1, offset: 0, scale: 1 } },
+    lowpass: { lowPass: { smoothing: 20 } }
   };
-  destroy() {
-    this.node.rest.request("DELETE", `/sessions/${this.node.sessionId}/players/${this.guildId}`);
+  async destroy(reason = "PLAYER_DESTROYED" /* PlayerDestroyed */) {
+    this.node.client.events.emit("playerDestroy", this, reason);
+    await this.node.rest.request("DELETE", `/sessions/${this.node.sessionId}/players/${this.guildId}`);
   }
 };
 
@@ -475,12 +541,11 @@ var PlayMan = class {
   get(guildId) {
     return this.players.get(guildId);
   }
-  destroy(guildId) {
+  destroy(guildId, reason = "PLAYER_DESTROYED" /* PlayerDestroyed */) {
     const player = this.players.get(guildId);
     if (player) {
-      player.destroy();
+      player.destroy(reason);
       this.players.delete(guildId);
-      this.client.events.emit("playerDestroy", player);
     }
   }
   handleVoiceUpdate(data) {
@@ -498,23 +563,47 @@ var LoopMode = /* @__PURE__ */ ((LoopMode2) => {
   LoopMode2["Queue"] = "queue";
   return LoopMode2;
 })(LoopMode || {});
+var MemoryQueueStore = class {
+  stores = /* @__PURE__ */ new Map();
+  async get(guildId) {
+    return this.stores.get(guildId) || null;
+  }
+  async set(guildId, value) {
+    this.stores.set(guildId, value);
+  }
+  async delete(guildId) {
+    this.stores.delete(guildId);
+  }
+};
 var Queue = class {
   tracks = [];
   current = null;
   previous = [];
   loop = "none" /* None */;
   autoplay = false;
-  add(track) {
+  store;
+  guildId;
+  constructor(guildId, store = new MemoryQueueStore()) {
+    this.guildId = guildId;
+    this.store = store;
+  }
+  async add(track) {
     if (Array.isArray(track)) {
       this.tracks.push(...track);
     } else {
       this.tracks.push(track);
     }
     if (!this.current) {
-      this.current = this.tracks.shift() || null;
+      const next = this.tracks.shift();
+      if (next && "resolve" in next) {
+        this.tracks.unshift(next);
+      } else {
+        this.current = next || null;
+      }
     }
+    await this.save();
   }
-  next() {
+  async next() {
     if (this.current) {
       if (this.loop === "track" /* Track */) {
         return true;
@@ -525,26 +614,57 @@ var Queue = class {
         this.tracks.push(this.current);
       }
     }
-    this.current = this.tracks.shift() || null;
-    return !!this.current;
+    const next = this.tracks.shift();
+    if (next && "resolve" in next) {
+      this.tracks.unshift(next);
+      this.current = null;
+    } else {
+      this.current = next || null;
+    }
+    await this.save();
+    return !!this.current || this.tracks.length > 0 && "resolve" in this.tracks[0];
   }
-  skip() {
+  async skip() {
     return this.next();
   }
-  shuffle() {
+  async shuffle() {
     for (let i = this.tracks.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [this.tracks[i], this.tracks[j]] = [this.tracks[j], this.tracks[i]];
     }
+    await this.save();
   }
-  clear() {
+  async clear() {
     this.tracks = [];
     this.current = null;
     this.previous = [];
+    await this.save();
   }
-  remove(index) {
+  async remove(index) {
     if (index < 0 || index >= this.tracks.length) return null;
-    return this.tracks.splice(index, 1)[0];
+    const track = this.tracks.splice(index, 1)[0];
+    await this.save();
+    return track;
+  }
+  find(query) {
+    return this.tracks.filter(
+      (t) => t.info?.title?.toLowerCase().includes(query.toLowerCase()) || t.info?.author?.toLowerCase().includes(query.toLowerCase())
+    );
+  }
+  async save() {
+    await this.store.set(this.guildId, {
+      current: this.current,
+      previous: this.previous,
+      tracks: this.tracks
+    });
+  }
+  async load() {
+    const data = await this.store.get(this.guildId);
+    if (data) {
+      this.current = data.current;
+      this.previous = data.previous;
+      this.tracks = data.tracks;
+    }
   }
 };
 
@@ -559,7 +679,7 @@ var QMan = class {
   get(guildId) {
     let queue = this.queues.get(guildId);
     if (!queue) {
-      queue = new Queue();
+      queue = new Queue(guildId);
       this.queues.set(guildId, queue);
     }
     return queue;
@@ -575,7 +695,10 @@ var SrcMan = class {
   constructor(client) {
     this.client = client;
   }
-  async resolve(input) {
+  async resolve(input, requester) {
+    if (!this.validateInput(input)) {
+      return { type: "error", tracks: [] };
+    }
     const node = this.client.node.best();
     if (!node) throw new Error("No available nodes");
     let identifier = input;
@@ -590,16 +713,16 @@ var SrcMan = class {
     }
     switch (data.loadType) {
       case "track":
-        return { type: "track", tracks: [this.mapTrack(data.data)] };
+        return { type: "track", tracks: [this.mapTrack(data.data, requester)] };
       case "playlist":
         return {
           type: "playlist",
-          tracks: data.data.tracks.map((t) => this.mapTrack(t)),
+          tracks: data.data.tracks.map((t) => this.mapTrack(t, requester)),
           playlistName: data.data.info.name,
           playlistArtworkUrl: data.data.pluginInfo?.artworkUrl || data.data.info?.artworkUrl
         };
       case "search":
-        return { type: "search", tracks: data.data.map((t) => this.mapTrack(t)) };
+        return { type: "search", tracks: data.data.map((t) => this.mapTrack(t, requester)) };
       case "error":
         return { type: "error", tracks: [] };
       case "empty":
@@ -607,6 +730,36 @@ var SrcMan = class {
       default:
         return { type: "error", tracks: [] };
     }
+  }
+  createUnresolved(query, requester) {
+    const track = {
+      resolve: async (player) => {
+        const res = await this.resolve(query, requester);
+        if (res.tracks.length > 0 && !("resolve" in res.tracks[0])) {
+          const resolved = res.tracks[0];
+          Object.assign(track, resolved);
+          const queue = player.node.client.queue.get(player.guildId);
+          if (queue.current === track) {
+            queue.current = track;
+          }
+          return true;
+        }
+        return false;
+      },
+      info: { title: query },
+      requester
+    };
+    return track;
+  }
+  validateInput(input) {
+    const { whitelist, blacklist } = this.client.options;
+    if (whitelist && whitelist.length > 0) {
+      return whitelist.some((domain) => input.includes(domain));
+    }
+    if (blacklist && blacklist.length > 0) {
+      return !blacklist.some((domain) => input.includes(domain));
+    }
+    return true;
   }
   isUrl(input) {
     try {
@@ -616,7 +769,7 @@ var SrcMan = class {
       return false;
     }
   }
-  mapTrack(data) {
+  mapTrack(data, requester) {
     if (data.info && !data.info.duration && data.info.length) {
       data.info.duration = data.info.length;
     }
@@ -629,7 +782,9 @@ var SrcMan = class {
     return {
       track: data.encoded,
       info: data.info,
-      src: data.info.sourceName
+      pluginInfo: data.pluginInfo || {},
+      src: data.info.sourceName,
+      requester
     };
   }
 };
@@ -679,6 +834,14 @@ var Client = class {
     this.discord.on("raw", (packet) => {
       if (packet.t === "VOICE_SERVER_UPDATE" || packet.t === "VOICE_STATE_UPDATE") {
         this.play.handleVoiceUpdate(packet.d);
+      }
+      if (packet.t === "CHANNEL_DELETE") {
+        const guildId = packet.d.guild_id;
+        const channelId = packet.d.id;
+        const player = this.play.get(guildId);
+        if (player && player.voice.channelId === channelId) {
+          player.destroy("CHANNEL_DELETED" /* ChannelDeleted */);
+        }
       }
     });
     for (const nodeOptions of this.options.nodes) {
@@ -730,8 +893,10 @@ var PlatformMap = {
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   Client,
+  DestroyReason,
   EvtMan,
   LoopMode,
+  MemoryQueueStore,
   Node,
   NodeMan,
   PlatformMap,
@@ -742,6 +907,7 @@ var PlatformMap = {
   Rest,
   Sock,
   SrcMan,
-  Voice
+  Voice,
+  isUnresolvedTrack
 });
 //# sourceMappingURL=index.js.map

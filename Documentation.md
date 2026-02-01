@@ -49,7 +49,10 @@ const lavx = new LavxClient(djs, {
       secure: false
     }
   ],
-  defaultSearchPlatform: 'ytsearch' // Default search prefix
+  defaultSearchPlatform: 'ytsearch', // Default search prefix
+  maxReconnectAttempts: 10,
+  whitelist: ['youtube.com', 'spotify.com'], // Optional domain whitelist
+  blacklist: ['malicious.site'] // Optional domain blacklist
 });
 
 djs.login('YOUR_TOKEN');
@@ -88,25 +91,23 @@ Migrates all players from one node to another (e.g., during maintenance).
 ### Player API (`client.play`)
 
 #### `Player` instance methods:
-- `play(options?)`: Starts playing the current track in the queue.
+- `play(options?)`: Starts playing the current track in the queue. Automatically resolves unresolved tracks.
 - `stop()`: Stops playback.
 - `pause(state: boolean)`: Pauses or resumes playback.
 - `resume()`: Shorthand for `pause(false)`.
 - `seek(position: number)`: Seeks to a specific position (ms).
 - `setVolume(volume: number)`: Sets player volume (0-1000).
 - `setFilters(filters: any)`: Applies Lavalink filters.
+- `setAudioOutput(output: 'left' | 'right' | 'mono' | 'stereo')`: Quickly set audio channel mixing.
 - `connect(channelId: string, options?)`: Joins a voice channel.
 - `disconnect()`: Leaves the voice channel.
 - `moveToChannel(channelId: string, options?)`: Moves the player to a different voice channel.
 - `moveToNode(toNode: Node)`: Moves the player to a different Lavalink node mid-playback.
+- `destroy(reason?: DestroyReason)`: Destroys the player and cleans up resources with a specific reason.
 
 #### Filter Presets
 Common presets available on `player.filterPresets`:
-- `bassboost`
-- `nightcore`
-- `vaporwave`
-- `pop`
-- `soft`
+`bassboost`, `nightcore`, `vaporwave`, `pop`, `soft`, `electronic`, `dance`, `classical`, `rock`, `fullbass`, `karaoke`, `tremolo`, `vibrato`, `rotation`, `distortion`, `lowpass`.
 
 Example:
 ```typescript
@@ -118,17 +119,28 @@ await player.setFilters(player.filterPresets.bassboost);
 ### Queue API (`client.queue`)
 
 #### `Queue` instance properties/methods:
-- `tracks`: The array of upcoming tracks.
+- `tracks`: The array of upcoming tracks (supports `Track` and `UnresolvedTrack`).
 - `current`: The currently playing track.
-- `previous`: An array of previously played tracks (history).
+- `previous`: An array of previously played tracks (history, max 100).
 - `loop`: Loop mode (`none`, `track`, `queue`).
-- `autoplay`: Boolean. If enabled, it will fetch related tracks when the queue ends.
+- `autoplay`: Boolean. If enabled, it will fetch related tracks from various platforms when the queue ends.
 - `add(track)`: Adds track(s) to the queue.
 - `next()`: Moves to the next track.
 - `skip()`: Shorthand for `next()`.
 - `shuffle()`: Shuffles the upcoming tracks.
 - `clear()`: Clears the entire queue.
 - `remove(index)`: Removes a specific track by index.
+- `find(query)`: Search for tracks in the queue by title or author.
+
+#### Custom Queue Stores
+You can implement the `QueueStore` interface to use Redis or other databases:
+```typescript
+interface QueueStore {
+  get: (guildId: string) => Promise<StoredQueue | null>;
+  set: (guildId: string, value: StoredQueue) => Promise<void>;
+  delete: (guildId: string) => Promise<void>;
+}
+```
 
 ---
 
@@ -143,7 +155,7 @@ Listen to events using `lavx.events.on(eventName, callback)`.
 | `nodeError` | When a node encounters an error. |
 | `nodeReady` | When a node is ready (session ID received). |
 | `playerCreate` | When a new player is created. |
-| `playerDestroy` | When a player is destroyed. |
+| `playerDestroy` | When a player is destroyed (includes `DestroyReason`). |
 | `playerMove` | When a player moves to a different voice channel. |
 | `trackStart` | When a track starts playing. |
 | `trackEnd` | When a track finishes. |
@@ -159,5 +171,6 @@ Listen to events using `lavx.events.on(eventName, callback)`.
 
 - **Plain Text**: Defaults to `defaultSearchPlatform` (default: `ytsearch:`).
 - **URLs**: Automatically handled. If a specific plugin (like LavaSrc) is missing, it falls back to searching via the default platform.
+- **Unresolved Tracks**: You can add tracks by query without fetching full data immediately using `client.src.createUnresolved(query)`. Full data is fetched only when the track is about to play.
 
-Requires Lavalink plugins like **LavaSrc** or **LavaSearch** on the server side for optimized platform metadata.
+Requires Lavalink plugins like **LavaSrc** or **LavaSearch** on the server side for optimized platform metadata and recommendations.

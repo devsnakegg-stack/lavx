@@ -1,40 +1,58 @@
 import { Client as Client$1 } from 'discord.js';
 import { EventEmitter } from 'events';
 
-interface Track {
-    track: string;
-    info: TrackInfo;
-    src: string;
-    requester?: any;
-}
+type SourceNames = "youtube" | "youtubemusic" | "soundcloud" | "bandcamp" | "twitch" | "deezer" | "spotify" | "applemusic" | "yandexmusic" | "flowery-tts" | "vkmusic" | "tidal" | "qobuz" | "pandora" | "jiosaavn" | string;
 interface TrackInfo {
     identifier: string;
     isSeekable: boolean;
     author: string;
     length: number;
+    duration: number;
     isStream: boolean;
     position: number;
     title: string;
     uri: string;
     artworkUrl?: string;
     isrc?: string;
-    sourceName: string;
-    /**
-     * The duration of the track in milliseconds. Alias for length.
-     */
-    duration: number;
+    sourceName: SourceNames;
 }
+interface PluginInfo {
+    type?: string;
+    albumName?: string;
+    albumUrl?: string;
+    albumArtUrl?: string;
+    artistUrl?: string;
+    artistArtworkUrl?: string;
+    previewUrl?: string;
+    isPreview?: boolean;
+    totalTracks?: number;
+    [key: string]: any;
+}
+interface Track {
+    track: string;
+    info: TrackInfo;
+    pluginInfo: PluginInfo;
+    src: string;
+    requester?: any;
+    userData?: any;
+}
+interface UnresolvedTrack extends Partial<Track> {
+    resolve: (player: any) => Promise<boolean>;
+}
+declare function isUnresolvedTrack(track: any): track is UnresolvedTrack;
 
 interface ResolveResult {
     type: 'track' | 'playlist' | 'search' | 'error';
-    tracks: Track[];
+    tracks: (Track | UnresolvedTrack)[];
     playlistName?: string;
     playlistArtworkUrl?: string;
 }
 declare class SrcMan {
     readonly client: Client;
     constructor(client: Client);
-    resolve(input: string): Promise<ResolveResult>;
+    resolve(input: string, requester?: any): Promise<ResolveResult>;
+    createUnresolved(query: string, requester?: any): UnresolvedTrack;
+    private validateInput;
     private isUrl;
     private mapTrack;
 }
@@ -79,6 +97,7 @@ declare class NodeMan {
     best(): Node;
     destroy(name: string): void;
     migrate(fromNode: Node, toNode?: Node): Promise<void>;
+    handleNodeFailure(node: Node): Promise<void>;
 }
 declare class Node {
     readonly client: Client;
@@ -104,6 +123,13 @@ declare class Voice {
     update(data: any): void;
 }
 
+declare enum DestroyReason {
+    ChannelDeleted = "CHANNEL_DELETED",
+    Disconnected = "DISCONNECTED",
+    PlayerDestroyed = "PLAYER_DESTROYED",
+    NodeDestroyed = "NODE_DESTROYED",
+    LoadFailed = "LOAD_FAILED"
+}
 declare class Player {
     node: Node;
     readonly guildId: string;
@@ -131,6 +157,7 @@ declare class Player {
     seek(position: number): Promise<void>;
     setVolume(volume: number): Promise<void>;
     setFilters(filters: any): Promise<void>;
+    setAudioOutput(output: 'left' | 'right' | 'mono' | 'stereo'): Promise<void>;
     moveToNode(toNode: Node): Promise<void>;
     moveToChannel(channelId: string, options?: {
         mute?: boolean;
@@ -175,8 +202,80 @@ declare class Player {
                 gain: number;
             }[];
         };
+        electronic: {
+            equalizer: {
+                band: number;
+                gain: number;
+            }[];
+        };
+        dance: {
+            equalizer: {
+                band: number;
+                gain: number;
+            }[];
+        };
+        classical: {
+            equalizer: {
+                band: number;
+                gain: number;
+            }[];
+        };
+        rock: {
+            equalizer: {
+                band: number;
+                gain: number;
+            }[];
+        };
+        fullbass: {
+            equalizer: {
+                band: number;
+                gain: number;
+            }[];
+        };
+        karaoke: {
+            karaoke: {
+                level: number;
+                monoLevel: number;
+                filterBand: number;
+                filterWidth: number;
+            };
+        };
+        tremolo: {
+            tremolo: {
+                frequency: number;
+                depth: number;
+            };
+        };
+        vibrato: {
+            vibrato: {
+                frequency: number;
+                depth: number;
+            };
+        };
+        rotation: {
+            rotation: {
+                rotationHz: number;
+            };
+        };
+        distortion: {
+            distortion: {
+                sinOffset: number;
+                sinScale: number;
+                cosOffset: number;
+                cosScale: number;
+                tanOffset: number;
+                tanScale: number;
+                offset: number;
+                scale: number;
+            };
+        };
+        lowpass: {
+            lowPass: {
+                smoothing: number;
+            };
+        };
     };
-    destroy(): void;
+    destroy(reason?: DestroyReason): Promise<void>;
 }
 
 interface PlayerOptions {
@@ -189,7 +288,7 @@ declare class PlayMan {
     constructor(client: Client);
     create(options: PlayerOptions): Player;
     get(guildId: string): Player | undefined;
-    destroy(guildId: string): void;
+    destroy(guildId: string, reason?: DestroyReason): void;
     handleVoiceUpdate(data: any): void;
 }
 
@@ -198,18 +297,40 @@ declare enum LoopMode {
     Track = "track",
     Queue = "queue"
 }
+interface StoredQueue {
+    current: Track | null;
+    previous: Track[];
+    tracks: (Track | UnresolvedTrack)[];
+}
+interface QueueStore {
+    get: (guildId: string) => Promise<StoredQueue | null>;
+    set: (guildId: string, value: StoredQueue) => Promise<void>;
+    delete: (guildId: string) => Promise<void>;
+}
+declare class MemoryQueueStore implements QueueStore {
+    private stores;
+    get(guildId: string): Promise<StoredQueue | null>;
+    set(guildId: string, value: StoredQueue): Promise<void>;
+    delete(guildId: string): Promise<void>;
+}
 declare class Queue {
-    tracks: Track[];
+    tracks: (Track | UnresolvedTrack)[];
     current: Track | null;
     previous: Track[];
     loop: LoopMode;
     autoplay: boolean;
-    add(track: Track | Track[]): void;
-    next(): boolean;
-    skip(): boolean;
-    shuffle(): void;
-    clear(): void;
-    remove(index: number): Track | null;
+    private store;
+    private guildId;
+    constructor(guildId: string, store?: QueueStore);
+    add(track: (Track | UnresolvedTrack) | (Track | UnresolvedTrack)[]): Promise<void>;
+    next(): Promise<boolean>;
+    skip(): Promise<boolean>;
+    shuffle(): Promise<void>;
+    clear(): Promise<void>;
+    remove(index: number): Promise<Track | UnresolvedTrack | null>;
+    find(query: string): (Track | UnresolvedTrack)[];
+    private save;
+    load(): Promise<void>;
 }
 
 declare class QMan {
@@ -227,7 +348,7 @@ interface LavxEvents {
     nodeReconnect: (node: Node) => void;
     nodeReady: (node: Node, payload: any) => void;
     playerCreate: (player: Player) => void;
-    playerDestroy: (player: Player) => void;
+    playerDestroy: (player: Player, reason: DestroyReason) => void;
     playerMove: (player: Player, oldChannelId: string | null, newChannelId: string | null) => void;
     playerDisconnect: (player: Player, code: number, reason: string, byRemote: boolean) => void;
     trackStart: (player: Player, track: string) => void;
@@ -249,6 +370,9 @@ interface LavxOptions {
     nodes: NodeOptions[];
     send?: (guildId: string, payload: any) => void;
     defaultSearchPlatform?: string;
+    maxReconnectAttempts?: number;
+    whitelist?: string[];
+    blacklist?: string[];
 }
 interface NodeOptions {
     name?: string;
@@ -273,4 +397,4 @@ declare class Client {
 
 declare const PlatformMap: Record<string, string>;
 
-export { Client, EvtMan, type LavxEvents, type LavxOptions, LoopMode, Node, NodeMan, type NodeOptions, PlatformMap, PlayMan, Player, type PlayerOptions, QMan, Queue, type ResolveResult, Rest, Sock, SrcMan, type Track, type TrackInfo, Voice };
+export { Client, DestroyReason, EvtMan, type LavxEvents, type LavxOptions, LoopMode, MemoryQueueStore, Node, NodeMan, type NodeOptions, PlatformMap, PlayMan, Player, type PlayerOptions, type PluginInfo, QMan, Queue, type QueueStore, type ResolveResult, Rest, Sock, type SourceNames, SrcMan, type StoredQueue, type Track, type TrackInfo, type UnresolvedTrack, Voice, isUnresolvedTrack };

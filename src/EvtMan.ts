@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { Client } from './Client';
 import { Node } from './NodeMan';
-import { Player } from './Player';
+import { Player, DestroyReason } from './Player';
 import { Track } from './Track';
 
 export interface LavxEvents {
@@ -11,7 +11,7 @@ export interface LavxEvents {
   nodeReconnect: (node: Node) => void;
   nodeReady: (node: Node, payload: any) => void;
   playerCreate: (player: Player) => void;
-  playerDestroy: (player: Player) => void;
+  playerDestroy: (player: Player, reason: DestroyReason) => void;
   playerMove: (player: Player, oldChannelId: string | null, newChannelId: string | null) => void;
   playerDisconnect: (player: Player, code: number, reason: string, byRemote: boolean) => void;
   trackStart: (player: Player, track: string) => void;

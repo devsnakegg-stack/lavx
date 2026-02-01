@@ -1,4 +1,4 @@
-import { Client as DjsClient, GatewayIntentBits, Message } from 'discord.js';
+import { Client as DjsClient, GatewayIntentBits, Message, EmbedBuilder } from 'discord.js';
 import { Client as LavxClient, LoopMode } from '../src/Index';
 
 const client = new DjsClient({
@@ -21,6 +21,7 @@ const lavx = new LavxClient(client, {
     },
   ],
   defaultSearchPlatform: 'ytsearch',
+  maxReconnectAttempts: 5,
 });
 
 const prefix = '!';
@@ -35,6 +36,7 @@ lavx.events.on('trackStart', (player, track) => console.log(`Started track in ${
 lavx.events.on('playerMove', (player, oldId, newId) => console.log(`Player in ${player.guildId} moved from ${oldId} to ${newId}`));
 lavx.events.on('queueEnd', (player) => console.log(`Queue ended in ${player.guildId}`));
 lavx.events.on('nodeReady', (node) => console.log(`Node ${node.name} ready`));
+lavx.events.on('playerDestroy', (player, reason) => console.log(`Player in ${player.guildId} destroyed: ${reason}`));
 
 client.on('messageCreate', async (message: Message) => {
   if (message.author.bot || !message.guild || !message.content.startsWith(prefix)) return;
@@ -58,17 +60,14 @@ client.on('messageCreate', async (message: Message) => {
     const res = await lavx.playInput(message.guild.id, input, message.author);
     if (!res) return message.reply('No results found');
 
-    if (res.type === 'playlist') {
-      message.reply({
-        content: `Loaded playlist **${res.playlistName}** with ${res.tracks.length} tracks\nURL: ${res.tracks[0].info.uri}`,
-        files: res.playlistArtworkUrl ? [res.playlistArtworkUrl] : []
-      });
-    } else {
-      message.reply({
-        content: `Added to queue: **${res.tracks[0].info.title}**\nURL: ${res.tracks[0].info.uri}`,
-        files: res.tracks[0].info.artworkUrl ? [res.tracks[0].info.artworkUrl] : []
-      });
-    }
+    const track = res.tracks[0];
+    const embed = new EmbedBuilder()
+        .setTitle(res.type === 'playlist' ? `Playlist: ${res.playlistName}` : (track.info?.title || 'Unknown Title'))
+        .setURL(track.info?.uri || null)
+        .setThumbnail(res.playlistArtworkUrl || track.info?.artworkUrl || null)
+        .setDescription(res.type === 'playlist' ? `Added ${res.tracks.length} tracks` : `Added **${track.info?.title || 'Unknown'}** by **${track.info?.author || 'Unknown'}**`);
+
+    message.reply({ embeds: [embed] });
   }
 
   if (command === 'pause') {
@@ -91,10 +90,10 @@ client.on('messageCreate', async (message: Message) => {
 
   if (command === 'skip') {
     if (!player) return message.reply('No player found');
-    queue.skip();
+    await queue.skip();
     if (queue.current) {
         await player.play();
-        message.reply(`Skipped to: ${queue.current.info.title}`);
+        message.reply(`Skipped to: ${queue.current.info?.title || 'Unknown'}`);
     } else {
         await player.stop();
         message.reply('Skipped, no more tracks');
@@ -107,11 +106,11 @@ client.on('messageCreate', async (message: Message) => {
     queue.tracks.unshift(queue.current!);
     queue.current = prev;
     await player?.play();
-    message.reply(`Playing previous: ${queue.current.info.title}`);
+    message.reply(`Playing previous: ${queue.current.info?.title || 'Unknown'}`);
   }
 
   if (command === 'shuffle') {
-    queue.shuffle();
+    await queue.shuffle();
     message.reply('Queue shuffled');
   }
 
@@ -144,7 +143,7 @@ client.on('messageCreate', async (message: Message) => {
     if (!player) return message.reply('No player found');
     const filter = args[0]?.toLowerCase();
     if (filter === 'reset') {
-      await player.setFilters({});
+      await player.setFilters({ equalizer: [], timescale: null, karaoke: null, tremolo: null, vibrato: null, rotation: null, distortion: null, lowPass: null });
       return message.reply('Filters reset');
     }
     const preset = (player.filterPresets as any)[filter || ''];
@@ -154,6 +153,17 @@ client.on('messageCreate', async (message: Message) => {
     } else {
       message.reply(`Available filters: ${Object.keys(player.filterPresets).join(', ')}, reset`);
     }
+  }
+
+  if (command === 'output') {
+      if (!player) return message.reply('No player found');
+      const mode = args[0]?.toLowerCase() as any;
+      if (['left', 'right', 'mono', 'stereo'].includes(mode)) {
+          await player.setAudioOutput(mode);
+          message.reply(`Audio output set to \`${mode}\``);
+      } else {
+          message.reply('Invalid mode. Use: left, right, mono, stereo');
+      }
   }
 
   if (command === 'status') {
@@ -173,16 +183,20 @@ client.on('messageCreate', async (message: Message) => {
   if (command === 'queue') {
     const sub = args[0]?.toLowerCase();
     if (sub === 'clear') {
-        queue.clear();
+        await queue.clear();
         message.reply('Queue cleared');
     } else if (sub === 'remove') {
         const index = parseInt(args[1]);
         if (isNaN(index)) return message.reply('Invalid index');
-        const removed = queue.remove(index - 1);
-        message.reply(removed ? `Removed ${removed.info.title}` : 'Track not found');
+        const removed = await queue.remove(index - 1);
+        message.reply(removed ? `Removed ${removed.info?.title || 'Unknown'}` : 'Track not found');
+    } else if (sub === 'find') {
+        const q = args.slice(1).join(' ');
+        const found = queue.find(q);
+        message.reply(`Found ${found.length} tracks:\n${found.map(t => t.info?.title || 'Unknown').join('\n').slice(0, 1000)}`);
     } else {
-        const list = queue.tracks.map((t, i) => `${i + 1}. ${t.info.title}`).join('\n') || 'Empty';
-        message.reply(`**Current:** ${queue.current?.info.title || 'None'}\n**Upcoming:**\n${list.slice(0, 1500)}`);
+        const list = queue.tracks.map((t, i) => `${i + 1}. ${t.info?.title || 'Unknown'}`).join('\n') || 'Empty';
+        message.reply(`**Current:** ${queue.current?.info?.title || 'None'}\n**Upcoming:**\n${list.slice(0, 1500)}`);
     }
   }
 

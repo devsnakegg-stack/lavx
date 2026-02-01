@@ -47,6 +47,11 @@ export class NodeMan {
       await player.moveToNode(targetNode);
     }
   }
+
+  public async handleNodeFailure(node: Node) {
+    // This is called when a node is definitely down or destroyed
+    await this.migrate(node);
+  }
 }
 
 export class Node {

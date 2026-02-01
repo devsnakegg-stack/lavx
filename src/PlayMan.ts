@@ -1,5 +1,5 @@
 import { Client } from './Client';
-import { Player } from './Player';
+import { Player, DestroyReason } from './Player';
 
 export interface PlayerOptions {
   guildId: string;
@@ -32,12 +32,11 @@ export class PlayMan {
     return this.players.get(guildId);
   }
 
-  public destroy(guildId: string) {
+  public destroy(guildId: string, reason: DestroyReason = DestroyReason.PlayerDestroyed) {
     const player = this.players.get(guildId);
     if (player) {
-      player.destroy();
+      player.destroy(reason);
       this.players.delete(guildId);
-      this.client.events.emit('playerDestroy', player);
     }
   }
 

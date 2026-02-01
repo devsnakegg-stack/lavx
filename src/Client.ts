@@ -1,6 +1,7 @@
 import { Client as DjsClient } from 'discord.js';
 import { NodeMan } from './NodeMan';
 import { PlayMan } from './PlayMan';
+import { DestroyReason } from './Player';
 import { QMan } from './QMan';
 import { SrcMan } from './SrcMan';
 import { EvtMan } from './EvtMan';
@@ -9,6 +10,9 @@ export interface LavxOptions {
   nodes: NodeOptions[];
   send?: (guildId: string, payload: any) => void;
   defaultSearchPlatform?: string;
+  maxReconnectAttempts?: number;
+  whitelist?: string[];
+  blacklist?: string[];
 }
 
 export interface NodeOptions {
@@ -48,6 +52,14 @@ export class Client {
     this.discord.on('raw', (packet) => {
       if (packet.t === 'VOICE_SERVER_UPDATE' || packet.t === 'VOICE_STATE_UPDATE') {
         this.play.handleVoiceUpdate(packet.d);
+      }
+      if (packet.t === 'CHANNEL_DELETE') {
+        const guildId = packet.d.guild_id;
+        const channelId = packet.d.id;
+        const player = this.play.get(guildId);
+        if (player && player.voice.channelId === channelId) {
+          player.destroy(DestroyReason.ChannelDeleted);
+        }
       }
     });
 
