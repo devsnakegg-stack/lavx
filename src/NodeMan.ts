@@ -44,7 +44,7 @@ export class NodeMan {
 
     const players = Array.from(this.client.play.players.values()).filter(p => p.node === fromNode);
     for (const player of players) {
-      await player.move(targetNode);
+      await player.moveToNode(targetNode);
     }
   }
 }

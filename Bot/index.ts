@@ -32,6 +32,7 @@ client.on('ready', () => {
 lavx.events.on('nodeConnect', (node) => console.log(`Node ${node.name} connected`));
 lavx.events.on('nodeDisconnect', (node, code, reason) => console.log(`Node ${node.name} disconnected: ${code} ${reason}`));
 lavx.events.on('trackStart', (player, track) => console.log(`Started track in ${player.guildId}`));
+lavx.events.on('playerMove', (player, oldId, newId) => console.log(`Player in ${player.guildId} moved from ${oldId} to ${newId}`));
 lavx.events.on('queueEnd', (player) => console.log(`Queue ended in ${player.guildId}`));
 lavx.events.on('nodeReady', (node) => console.log(`Node ${node.name} ready`));
 
@@ -147,6 +148,14 @@ client.on('messageCreate', async (message: Message) => {
     const nodes = Array.from(lavx.node.nodes.values());
     const status = nodes.map(n => `**${n.name}**: ${n.connected ? '✅ Connected' : '❌ Disconnected'} (${n.stats?.players || 0} players)`).join('\n');
     message.reply(`**Node Status:**\n${status}`);
+  }
+
+  if (command === 'move') {
+    if (!player) return message.reply('No player found');
+    const vc = message.member?.voice.channel;
+    if (!vc) return message.reply('Join a voice channel first');
+    await player.moveToChannel(vc.id);
+    message.reply(`Moved to ${vc.name}`);
   }
 
   if (command === 'queue') {

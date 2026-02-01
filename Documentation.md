@@ -97,7 +97,8 @@ Migrates all players from one node to another (e.g., during maintenance).
 - `setFilters(filters: any)`: Applies Lavalink filters.
 - `connect(channelId: string, options?)`: Joins a voice channel.
 - `disconnect()`: Leaves the voice channel.
-- `move(toNode: Node)`: Moves the player to a different Lavalink node mid-playback.
+- `moveToChannel(channelId: string, options?)`: Moves the player to a different voice channel.
+- `moveToNode(toNode: Node)`: Moves the player to a different Lavalink node mid-playback.
 
 #### Filter Presets
 Common presets available on `player.filterPresets`:
@@ -143,6 +144,7 @@ Listen to events using `lavx.events.on(eventName, callback)`.
 | `nodeReady` | When a node is ready (session ID received). |
 | `playerCreate` | When a new player is created. |
 | `playerDestroy` | When a player is destroyed. |
+| `playerMove` | When a player moves to a different voice channel. |
 | `trackStart` | When a track starts playing. |
 | `trackEnd` | When a track finishes. |
 | `trackError` | When a track encounters an exception. |

@@ -249,7 +249,7 @@ var NodeMan = class {
     if (!targetNode || targetNode === fromNode) return;
     const players = Array.from(this.client.play.players.values()).filter((p) => p.node === fromNode);
     for (const player of players) {
-      await player.move(targetNode);
+      await player.moveToNode(targetNode);
     }
   }
 };
@@ -283,6 +283,7 @@ var Voice = class {
   sessionId = null;
   token = null;
   endpoint = null;
+  channelId = null;
   constructor(player) {
     this.player = player;
   }
@@ -292,6 +293,11 @@ var Voice = class {
       this.endpoint = data.endpoint;
     } else if (data.session_id) {
       this.sessionId = data.session_id;
+      if (data.channel_id !== this.channelId) {
+        const oldChannelId = this.channelId;
+        this.channelId = data.channel_id;
+        this.player.node.client.events.emit("playerMove", this.player, oldChannelId, this.channelId);
+      }
     }
     if (this.token && this.sessionId && this.endpoint) {
       this.player.node.rest.updatePlayer(this.player.guildId, {
@@ -360,13 +366,16 @@ var Player = class {
     await this.node.rest.updatePlayer(this.guildId, { filters });
     this.filters = filters;
   }
-  async move(toNode) {
+  async moveToNode(toNode) {
     if (this.node === toNode) return;
     const position = this.state.position;
     this.node = toNode;
     if (this.playing || this.paused) {
       await this.play({ startTime: position });
     }
+  }
+  async moveToChannel(channelId, options = {}) {
+    await this.connect(channelId, options);
   }
   async connect(channelId, options = {}) {
     this.node.client.sendGatewayPayload(this.guildId, {

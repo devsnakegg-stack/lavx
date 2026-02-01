@@ -12,6 +12,7 @@ export interface LavxEvents {
   nodeReady: (node: Node, payload: any) => void;
   playerCreate: (player: Player) => void;
   playerDestroy: (player: Player) => void;
+  playerMove: (player: Player, oldChannelId: string | null, newChannelId: string | null) => void;
   playerDisconnect: (player: Player, code: number, reason: string, byRemote: boolean) => void;
   trackStart: (player: Player, track: string) => void;
   trackEnd: (player: Player, track: string, reason: string) => void;

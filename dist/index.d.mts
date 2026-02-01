@@ -98,6 +98,7 @@ declare class Voice {
     sessionId: string | null;
     token: string | null;
     endpoint: string | null;
+    channelId: string | null;
     constructor(player: Player);
     update(data: any): void;
 }
@@ -129,7 +130,11 @@ declare class Player {
     seek(position: number): Promise<void>;
     setVolume(volume: number): Promise<void>;
     setFilters(filters: any): Promise<void>;
-    move(toNode: Node): Promise<void>;
+    moveToNode(toNode: Node): Promise<void>;
+    moveToChannel(channelId: string, options?: {
+        mute?: boolean;
+        deaf?: boolean;
+    }): Promise<void>;
     connect(channelId: string, options?: {
         mute?: boolean;
         deaf?: boolean;
@@ -222,6 +227,7 @@ interface LavxEvents {
     nodeReady: (node: Node, payload: any) => void;
     playerCreate: (player: Player) => void;
     playerDestroy: (player: Player) => void;
+    playerMove: (player: Player, oldChannelId: string | null, newChannelId: string | null) => void;
     playerDisconnect: (player: Player, code: number, reason: string, byRemote: boolean) => void;
     trackStart: (player: Player, track: string) => void;
     trackEnd: (player: Player, track: string, reason: string) => void;

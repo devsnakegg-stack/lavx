@@ -71,13 +71,17 @@ export class Player {
     this.filters = filters;
   }
 
-  public async move(toNode: Node) {
+  public async moveToNode(toNode: Node) {
     if (this.node === toNode) return;
     const position = this.state.position;
     this.node = toNode;
     if (this.playing || this.paused) {
       await this.play({ startTime: position });
     }
+  }
+
+  public async moveToChannel(channelId: string, options: { mute?: boolean; deaf?: boolean } = {}) {
+    await this.connect(channelId, options);
   }
 
   public async connect(channelId: string, options: { mute?: boolean; deaf?: boolean } = {}) {
