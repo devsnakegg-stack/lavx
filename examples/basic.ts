@@ -1,5 +1,5 @@
 import { Client as DjsClient, GatewayIntentBits } from 'discord.js';
-import { Client as LavxClient } from '../index';
+import { Client as LavxClient } from '../src/Index';
 
 const djs = new DjsClient({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],

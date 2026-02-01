@@ -1,4 +1,4 @@
-// core/Sock.ts
+// src/Sock.ts
 import WebSocket from "ws";
 var Sock = class {
   node;
@@ -111,7 +111,7 @@ var Sock = class {
   }
 };
 
-// core/Rest.ts
+// src/Rest.ts
 import { fetch } from "undici";
 var Rest = class {
   node;
@@ -160,7 +160,7 @@ var Rest = class {
   }
 };
 
-// core/NodeMan.ts
+// src/NodeMan.ts
 var NodeMan = class {
   client;
   nodes;
@@ -213,7 +213,7 @@ var Node = class {
   }
 };
 
-// discord/Voice.ts
+// src/Voice.ts
 var Voice = class {
   player;
   sessionId = null;
@@ -241,7 +241,7 @@ var Voice = class {
   }
 };
 
-// play/Player.ts
+// src/Player.ts
 var Player = class {
   node;
   guildId;
@@ -335,7 +335,7 @@ var Player = class {
   }
 };
 
-// play/PlayMan.ts
+// src/PlayMan.ts
 var PlayMan = class {
   client;
   players;
@@ -372,7 +372,7 @@ var PlayMan = class {
   }
 };
 
-// queue/Queue.ts
+// src/Queue.ts
 var LoopMode = /* @__PURE__ */ ((LoopMode2) => {
   LoopMode2["None"] = "none";
   LoopMode2["Track"] = "track";
@@ -423,7 +423,7 @@ var Queue = class {
   }
 };
 
-// queue/QMan.ts
+// src/QMan.ts
 var QMan = class {
   client;
   queues;
@@ -507,7 +507,7 @@ var SrcMan = class {
   }
 };
 
-// events/EvtMan.ts
+// src/EvtMan.ts
 import { EventEmitter } from "events";
 var EvtMan = class extends EventEmitter {
   client;
@@ -526,7 +526,7 @@ var EvtMan = class extends EventEmitter {
   }
 };
 
-// core/Client.ts
+// src/Client.ts
 var Client = class {
   discord;
   node;

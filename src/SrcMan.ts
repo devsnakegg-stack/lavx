@@ -1,6 +1,6 @@
-import { Client } from '../core/Client';
+import { Client } from './Client';
 import { PlatformMap } from './Map';
-import { Track } from '../queue/Track';
+import { Track } from './Track';
 
 export interface ResolveResult {
   type: 'track' | 'playlist' | 'search' | 'error';

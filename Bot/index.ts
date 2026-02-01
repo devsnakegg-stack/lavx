@@ -1,5 +1,5 @@
 import { Client as DjsClient, GatewayIntentBits, Message } from 'discord.js';
-import { Client as LavxClient, LoopMode } from '../index'; // Using source for development, but can be dist/index
+import { Client as LavxClient, LoopMode } from '../src/Index'; // Using source for development, but can be dist/index
 
 const client = new DjsClient({
   intents: [
