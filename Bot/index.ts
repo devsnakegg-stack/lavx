@@ -1,5 +1,5 @@
 import { Client as DjsClient, GatewayIntentBits, Message } from 'discord.js';
-import { Client as LavxClient, LoopMode } from '../src/Index'; // Using source for development, but can be dist/index
+import { Client as LavxClient, LoopMode } from '../src/Index';
 
 const client = new DjsClient({
   intents: [
@@ -20,6 +20,7 @@ const lavx = new LavxClient(client, {
       secure: false,
     },
   ],
+  defaultSearchPlatform: 'ytsearch',
 });
 
 const prefix = '!';
@@ -29,8 +30,10 @@ client.on('ready', () => {
 });
 
 lavx.events.on('nodeConnect', (node) => console.log(`Node ${node.name} connected`));
+lavx.events.on('nodeDisconnect', (node, code, reason) => console.log(`Node ${node.name} disconnected: ${code} ${reason}`));
 lavx.events.on('trackStart', (player, track) => console.log(`Started track in ${player.guildId}`));
 lavx.events.on('queueEnd', (player) => console.log(`Queue ended in ${player.guildId}`));
+lavx.events.on('nodeReady', (node) => console.log(`Node ${node.name} ready`));
 
 client.on('messageCreate', async (message: Message) => {
   if (message.author.bot || !message.guild || !message.content.startsWith(prefix)) return;
@@ -59,13 +62,6 @@ client.on('messageCreate', async (message: Message) => {
     } else {
       message.reply(`Added to queue: **${res.tracks[0].info.title}**\nURL: ${res.tracks[0].info.uri}`);
     }
-  }
-
-  if (command === 'defaultsearch') {
-    const platform = args[0];
-    if (!platform) return message.reply(`Current default search platform: \`${lavx.options.defaultSearchPlatform}\``);
-    lavx.options.defaultSearchPlatform = platform;
-    message.reply(`Default search platform changed to \`${platform}\``);
   }
 
   if (command === 'pause') {
@@ -126,6 +122,33 @@ client.on('messageCreate', async (message: Message) => {
     }
   }
 
+  if (command === 'autoplay') {
+    queue.autoplay = !queue.autoplay;
+    message.reply(`Autoplay is now ${queue.autoplay ? 'enabled' : 'disabled'}`);
+  }
+
+  if (command === 'filter') {
+    if (!player) return message.reply('No player found');
+    const filter = args[0]?.toLowerCase();
+    if (filter === 'reset') {
+      await player.setFilters({});
+      return message.reply('Filters reset');
+    }
+    const preset = (player.filterPresets as any)[filter || ''];
+    if (preset) {
+      await player.setFilters(preset);
+      message.reply(`Applied filter: ${filter}`);
+    } else {
+      message.reply(`Available filters: ${Object.keys(player.filterPresets).join(', ')}, reset`);
+    }
+  }
+
+  if (command === 'status') {
+    const nodes = Array.from(lavx.node.nodes.values());
+    const status = nodes.map(n => `**${n.name}**: ${n.connected ? '✅ Connected' : '❌ Disconnected'} (${n.stats?.players || 0} players)`).join('\n');
+    message.reply(`**Node Status:**\n${status}`);
+  }
+
   if (command === 'queue') {
     const sub = args[0]?.toLowerCase();
     if (sub === 'clear') {
@@ -134,8 +157,8 @@ client.on('messageCreate', async (message: Message) => {
     } else if (sub === 'remove') {
         const index = parseInt(args[1]);
         if (isNaN(index)) return message.reply('Invalid index');
-        const removed = queue.tracks.splice(index - 1, 1);
-        message.reply(`Removed ${removed[0]?.info.title || 'nothing'}`);
+        const removed = queue.remove(index - 1);
+        message.reply(removed ? `Removed ${removed.info.title}` : 'Track not found');
     } else {
         const list = queue.tracks.map((t, i) => `${i + 1}. ${t.info.title}`).join('\n') || 'Empty';
         message.reply(`**Current:** ${queue.current?.info.title || 'None'}\n**Upcoming:**\n${list.slice(0, 1500)}`);

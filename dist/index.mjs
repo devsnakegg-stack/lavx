@@ -9,6 +9,7 @@ var Sock = class {
     this.node = node;
   }
   connect() {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) return;
     const { host, port, auth, secure } = this.node.options;
     const protocol = secure ? "wss" : "ws";
     const url = `${protocol}://${host}:${port}/v4/websocket`;
@@ -35,7 +36,12 @@ var Sock = class {
     this.node.client.events.emit("nodeConnect", this.node);
   }
   onMessage(data) {
-    const payload = JSON.parse(data.toString());
+    let payload;
+    try {
+      payload = JSON.parse(data.toString());
+    } catch (e) {
+      return;
+    }
     this.node.client.events.emit("raw", payload);
     switch (payload.op) {
       case "stats":
@@ -83,6 +89,7 @@ var Sock = class {
   }
   onClose(code, reason) {
     this.node.connected = false;
+    this.node.sessionId = null;
     this.node.client.events.emit("nodeDisconnect", this.node, code, reason.toString());
     this.reconnect();
   }
@@ -179,13 +186,21 @@ var NodeMan = class {
     return this.nodes.get(name);
   }
   best() {
-    return Array.from(this.nodes.values()).filter((n) => n.connected).sort((a, b) => (a.stats?.players || 0) - (b.stats?.players || 0))[0];
+    return Array.from(this.nodes.values()).filter((n) => n.connected && n.sessionId).sort((a, b) => (a.stats?.players || 0) - (b.stats?.players || 0))[0];
   }
   destroy(name) {
     const node = this.nodes.get(name);
     if (node) {
       node.destroy();
       this.nodes.delete(name);
+    }
+  }
+  async migrate(fromNode, toNode) {
+    const targetNode = toNode || this.best();
+    if (!targetNode || targetNode === fromNode) return;
+    const players = Array.from(this.client.play.players.values()).filter((p) => p.node === fromNode);
+    for (const player of players) {
+      await player.move(targetNode);
     }
   }
 };
@@ -296,6 +311,14 @@ var Player = class {
     await this.node.rest.updatePlayer(this.guildId, { filters });
     this.filters = filters;
   }
+  async move(toNode) {
+    if (this.node === toNode) return;
+    const position = this.state.position;
+    this.node = toNode;
+    if (this.playing || this.paused) {
+      await this.play({ startTime: position });
+    }
+  }
   async connect(channelId, options = {}) {
     this.node.client.sendGatewayPayload(this.guildId, {
       op: 4,
@@ -319,17 +342,38 @@ var Player = class {
     });
     await this.stop();
   }
-  onTrackEnd(payload) {
+  async onTrackEnd(payload) {
     this.playing = false;
     if (payload.reason !== "replaced" && payload.reason !== "stopped") {
       const queue = this.node.client.queue.get(this.guildId);
       if (queue.next()) {
-        this.play();
+        await this.play();
+      } else if (queue.autoplay && queue.previous.length > 0) {
+        await this.handleAutoplay(queue.previous[queue.previous.length - 1]);
       } else {
         this.node.client.events.emit("queueEnd", this);
       }
     }
   }
+  async handleAutoplay(lastTrack) {
+    const query = `https://www.youtube.com/watch?v=${lastTrack.info.identifier}&list=RD${lastTrack.info.identifier}`;
+    const res = await this.node.client.src.resolve(query);
+    if (res && res.tracks.length > 1) {
+      const track = res.tracks.find((t) => t.info.identifier !== lastTrack.info.identifier) || res.tracks[1];
+      const queue = this.node.client.queue.get(this.guildId);
+      queue.add(track);
+      await this.play();
+    } else {
+      this.node.client.events.emit("queueEnd", this);
+    }
+  }
+  filterPresets = {
+    bassboost: { equalizer: [{ band: 0, gain: 0.6 }, { band: 1, gain: 0.67 }, { band: 2, gain: 0.67 }, { band: 3, gain: 0 }] },
+    nightcore: { timescale: { speed: 1.1, pitch: 1.2, rate: 1 } },
+    vaporwave: { timescale: { speed: 0.85, pitch: 0.8 } },
+    pop: { equalizer: [{ band: 0, gain: 0.65 }, { band: 1, gain: 0.45 }, { band: 2, gain: -0.45 }, { band: 3, gain: -0.65 }, { band: 4, gain: 0.7 }, { band: 5, gain: 0.45 }, { band: 6, gain: 0.45 }, { band: 7, gain: 0.45 }, { band: 8, gain: 0.45 }, { band: 9, gain: 0.45 }, { band: 10, gain: 0.45 }, { band: 11, gain: 0.45 }, { band: 12, gain: 0.45 }, { band: 13, gain: 0.45 }, { band: 14, gain: 0.45 }] },
+    soft: { equalizer: [{ band: 0, gain: 0 }, { band: 1, gain: 0 }, { band: 2, gain: 0 }, { band: 3, gain: 0 }, { band: 4, gain: 0 }, { band: 5, gain: 0 }, { band: 6, gain: 0 }, { band: 7, gain: 0 }, { band: 8, gain: -0.25 }, { band: 9, gain: -0.25 }, { band: 10, gain: -0.25 }, { band: 11, gain: -0.25 }, { band: 12, gain: -0.25 }, { band: 13, gain: -0.25 }, { band: 14, gain: -0.25 }] }
+  };
   destroy() {
     this.node.rest.request("DELETE", `/sessions/${this.node.sessionId}/players/${this.guildId}`);
   }
@@ -384,6 +428,7 @@ var Queue = class {
   current = null;
   previous = [];
   loop = "none" /* None */;
+  autoplay = false;
   add(track) {
     if (Array.isArray(track)) {
       this.tracks.push(...track);
@@ -400,6 +445,7 @@ var Queue = class {
         return true;
       }
       this.previous.push(this.current);
+      if (this.previous.length > 100) this.previous.shift();
       if (this.loop === "queue" /* Queue */) {
         this.tracks.push(this.current);
       }
@@ -420,6 +466,10 @@ var Queue = class {
     this.tracks = [];
     this.current = null;
     this.previous = [];
+  }
+  remove(index) {
+    if (index < 0 || index >= this.tracks.length) return null;
+    return this.tracks.splice(index, 1)[0];
   }
 };
 
@@ -458,7 +508,11 @@ var SrcMan = class {
       const defaultSearch = this.client.options.defaultSearchPlatform || "ytsearch";
       identifier = `${defaultSearch}:${input}`;
     }
-    const data = await node.rest.loadTracks(identifier);
+    let data = await node.rest.loadTracks(identifier);
+    if ((data.loadType === "empty" || data.loadType === "error") && this.isUrl(input)) {
+      const defaultSearch = this.client.options.defaultSearchPlatform || "ytsearch";
+      data = await node.rest.loadTracks(`${defaultSearch}:${input}`);
+    }
     switch (data.loadType) {
       case "track":
         return { type: "track", tracks: [this.mapTrack(data.data)] };
@@ -473,8 +527,6 @@ var SrcMan = class {
       case "error":
         return { type: "error", tracks: [] };
       case "empty":
-        if (this.isUrl(input) && !input.includes(":")) {
-        }
         return { type: "search", tracks: [] };
       default:
         return { type: "error", tracks: [] };
@@ -488,17 +540,10 @@ var SrcMan = class {
       return false;
     }
   }
-  detectPlatform(url) {
-    if (url.includes("spotify.com")) return "spotify";
-    if (url.includes("music.apple.com")) return "apple";
-    if (url.includes("deezer.com")) return "deezer";
-    if (url.includes("music.yandex.ru")) return "yandex";
-    if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube";
-    if (url.includes("music.youtube.com")) return "youtube music";
-    if (url.includes("soundcloud.com")) return "soundcloud";
-    return null;
-  }
   mapTrack(data) {
+    if (data.info && !data.info.duration && data.info.length) {
+      data.info.duration = data.info.length;
+    }
     return {
       track: data.encoded,
       info: data.info,
@@ -557,6 +602,9 @@ var Client = class {
     for (const nodeOptions of this.options.nodes) {
       this.node.add(nodeOptions);
     }
+    this.events.on("nodeDisconnect", (node) => {
+      this.node.migrate(node);
+    });
   }
   sendGatewayPayload(guildId, payload) {
     if (this.options.send) {

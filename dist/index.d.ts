@@ -19,6 +19,10 @@ interface TrackInfo {
     artworkUrl?: string;
     isrc?: string;
     sourceName: string;
+    /**
+     * The duration of the track in milliseconds. Alias for length.
+     */
+    duration: number;
 }
 
 interface ResolveResult {
@@ -31,7 +35,6 @@ declare class SrcMan {
     constructor(client: Client);
     resolve(input: string): Promise<ResolveResult>;
     private isUrl;
-    private detectPlatform;
     private mapTrack;
 }
 
@@ -74,6 +77,7 @@ declare class NodeMan {
     get(name: string): Node | undefined;
     best(): Node;
     destroy(name: string): void;
+    migrate(fromNode: Node, toNode?: Node): Promise<void>;
 }
 declare class Node {
     readonly client: Client;
@@ -99,7 +103,7 @@ declare class Voice {
 }
 
 declare class Player {
-    readonly node: Node;
+    node: Node;
     readonly guildId: string;
     readonly voice: Voice;
     playing: boolean;
@@ -125,12 +129,47 @@ declare class Player {
     seek(position: number): Promise<void>;
     setVolume(volume: number): Promise<void>;
     setFilters(filters: any): Promise<void>;
+    move(toNode: Node): Promise<void>;
     connect(channelId: string, options?: {
         mute?: boolean;
         deaf?: boolean;
     }): Promise<void>;
     disconnect(): Promise<void>;
-    onTrackEnd(payload: any): void;
+    onTrackEnd(payload: any): Promise<void>;
+    private handleAutoplay;
+    filterPresets: {
+        bassboost: {
+            equalizer: {
+                band: number;
+                gain: number;
+            }[];
+        };
+        nightcore: {
+            timescale: {
+                speed: number;
+                pitch: number;
+                rate: number;
+            };
+        };
+        vaporwave: {
+            timescale: {
+                speed: number;
+                pitch: number;
+            };
+        };
+        pop: {
+            equalizer: {
+                band: number;
+                gain: number;
+            }[];
+        };
+        soft: {
+            equalizer: {
+                band: number;
+                gain: number;
+            }[];
+        };
+    };
     destroy(): void;
 }
 
@@ -158,11 +197,13 @@ declare class Queue {
     current: Track | null;
     previous: Track[];
     loop: LoopMode;
+    autoplay: boolean;
     add(track: Track | Track[]): void;
     next(): boolean;
     skip(): boolean;
     shuffle(): void;
     clear(): void;
+    remove(index: number): Track | null;
 }
 
 declare class QMan {

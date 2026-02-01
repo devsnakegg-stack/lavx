@@ -12,6 +12,18 @@
 npm install lavx discord.js ws undici
 ```
 
+### Module Support
+
+#### ESM (ES Modules)
+```typescript
+import { Client as LavxClient } from 'lavx';
+```
+
+#### CJS (CommonJS)
+```javascript
+const { Client: LavxClient } = require('lavx');
+```
+
 ### Initializing the Client
 
 ```typescript
@@ -36,7 +48,8 @@ const lavx = new LavxClient(djs, {
       auth: 'youshallnotpass',
       secure: false
     }
-  ]
+  ],
+  defaultSearchPlatform: 'ytsearch' // Default search prefix
 });
 
 djs.login('YOUR_TOKEN');
@@ -60,37 +73,19 @@ Resolves an input and automatically starts playback if the queue was empty.
 await lavx.playInput(message.guildId, 'never gonna give you up', message.author);
 ```
 
-#### `sendGatewayPayload(guildId: string, payload: any)`
-Sends a raw payload to the Discord gateway. Used internally for voice connectivity.
-
 ---
 
 ### Node Management (`client.node`)
 
-#### `add(options: NodeOptions)`
-Adds a new Lavalink node.
-
-#### `get(name: string)`
-Gets a node by name.
-
 #### `best()`
-Returns the most available node based on current player load.
+Returns the most available node based on current player load. Automatically filters for connected and ready nodes.
 
-#### `destroy(name: string)`
-Disconnects and removes a node.
+#### `migrate(fromNode: Node, toNode?: Node)`
+Migrates all players from one node to another (e.g., during maintenance).
 
 ---
 
 ### Player API (`client.play`)
-
-#### `create(options: PlayerOptions)`
-Creates or returns an existing player for a guild.
-
-#### `get(guildId: string)`
-Gets the player for a guild.
-
-#### `destroy(guildId: string)`
-Destroys the player and cleans up resources.
 
 #### `Player` instance methods:
 - `play(options?)`: Starts playing the current track in the queue.
@@ -102,24 +97,37 @@ Destroys the player and cleans up resources.
 - `setFilters(filters: any)`: Applies Lavalink filters.
 - `connect(channelId: string, options?)`: Joins a voice channel.
 - `disconnect()`: Leaves the voice channel.
+- `move(toNode: Node)`: Moves the player to a different Lavalink node mid-playback.
+
+#### Filter Presets
+Common presets available on `player.filterPresets`:
+- `bassboost`
+- `nightcore`
+- `vaporwave`
+- `pop`
+- `soft`
+
+Example:
+```typescript
+await player.setFilters(player.filterPresets.bassboost);
+```
 
 ---
 
 ### Queue API (`client.queue`)
 
-#### `get(guildId: string)`
-Gets the queue for a guild.
-
 #### `Queue` instance properties/methods:
 - `tracks`: The array of upcoming tracks.
 - `current`: The currently playing track.
-- `previous`: An array of previously played tracks.
+- `previous`: An array of previously played tracks (history).
 - `loop`: Loop mode (`none`, `track`, `queue`).
+- `autoplay`: Boolean. If enabled, it will fetch related tracks when the queue ends.
 - `add(track)`: Adds track(s) to the queue.
 - `next()`: Moves to the next track.
 - `skip()`: Shorthand for `next()`.
 - `shuffle()`: Shuffles the upcoming tracks.
 - `clear()`: Clears the entire queue.
+- `remove(index)`: Removes a specific track by index.
 
 ---
 
@@ -147,8 +155,7 @@ Listen to events using `lavx.events.on(eventName, callback)`.
 
 `lavx` routes inputs based on their content:
 
-- **Plain Text**: Defaults to YouTube Search (`ytsearch:`).
-- **YouTube/SoundCloud URL**: Loaded directly as a URL.
-- **Spotify/Apple/Deezer URL**: Automatically prefixed with search identifiers (e.g., `spsearch:`) for Lavalink plugins to handle.
+- **Plain Text**: Defaults to `defaultSearchPlatform` (default: `ytsearch:`).
+- **URLs**: Automatically handled. If a specific plugin (like LavaSrc) is missing, it falls back to searching via the default platform.
 
-Requires Lavalink plugins like **LavaSrc** or **LavaSearch** on the server side for non-direct platforms.
+Requires Lavalink plugins like **LavaSrc** or **LavaSearch** on the server side for optimized platform metadata.

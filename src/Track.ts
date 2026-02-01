@@ -17,4 +17,8 @@ export interface TrackInfo {
   artworkUrl?: string;
   isrc?: string;
   sourceName: string;
+  /**
+   * The duration of the track in milliseconds. Alias for length.
+   */
+  duration: number;
 }

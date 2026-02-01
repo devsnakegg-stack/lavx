@@ -54,6 +54,10 @@ export class Client {
     for (const nodeOptions of this.options.nodes) {
       this.node.add(nodeOptions);
     }
+
+    this.events.on('nodeDisconnect', (node) => {
+      this.node.migrate(node);
+    });
   }
 
   public sendGatewayPayload(guildId: string, payload: any) {

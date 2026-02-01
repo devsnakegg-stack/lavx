@@ -11,6 +11,7 @@ export class Queue {
   public current: Track | null = null;
   public previous: Track[] = [];
   public loop: LoopMode = LoopMode.None;
+  public autoplay: boolean = false;
 
   public add(track: Track | Track[]) {
     if (Array.isArray(track)) {
@@ -30,6 +31,9 @@ export class Queue {
         return true;
       }
       this.previous.push(this.current);
+      // Keep history at a reasonable size
+      if (this.previous.length > 100) this.previous.shift();
+
       if (this.loop === LoopMode.Queue) {
         this.tracks.push(this.current);
       }
@@ -54,5 +58,10 @@ export class Queue {
     this.tracks = [];
     this.current = null;
     this.previous = [];
+  }
+
+  public remove(index: number) {
+    if (index < 0 || index >= this.tracks.length) return null;
+    return this.tracks.splice(index, 1)[0];
   }
 }

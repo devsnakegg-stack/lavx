@@ -12,12 +12,15 @@ export class Sock {
   }
 
   public connect() {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) return;
+
     const { host, port, auth, secure } = this.node.options;
     const protocol = secure ? 'wss' : 'ws';
     const url = `${protocol}://${host}:${port}/v4/websocket`;
 
     const userId = this.node.client.discord.user?.id;
     if (!userId) {
+      // If client is not ready, retry in 5s
       this.reconnect();
       return;
     }
@@ -43,7 +46,13 @@ export class Sock {
   }
 
   private onMessage(data: any) {
-    const payload = JSON.parse(data.toString());
+    let payload: any;
+    try {
+      payload = JSON.parse(data.toString());
+    } catch (e) {
+      return;
+    }
+
     this.node.client.events.emit('raw', payload);
 
     switch (payload.op) {
@@ -96,6 +105,7 @@ export class Sock {
 
   private onClose(code: number, reason: any) {
     this.node.connected = false;
+    this.node.sessionId = null;
     this.node.client.events.emit('nodeDisconnect', this.node, code, reason.toString());
     this.reconnect();
   }

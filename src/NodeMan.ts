@@ -1,6 +1,7 @@
 import { Client, NodeOptions } from './Client';
 import { Sock } from './Sock';
 import { Rest } from './Rest';
+import { Player } from './Player';
 
 export class NodeMan {
   public readonly client: Client;
@@ -25,7 +26,7 @@ export class NodeMan {
 
   public best() {
     return Array.from(this.nodes.values())
-      .filter((n) => n.connected)
+      .filter((n) => n.connected && n.sessionId)
       .sort((a, b) => (a.stats?.players || 0) - (b.stats?.players || 0))[0];
   }
 
@@ -34,6 +35,16 @@ export class NodeMan {
     if (node) {
       node.destroy();
       this.nodes.delete(name);
+    }
+  }
+
+  public async migrate(fromNode: Node, toNode?: Node) {
+    const targetNode = toNode || this.best();
+    if (!targetNode || targetNode === fromNode) return;
+
+    const players = Array.from(this.client.play.players.values()).filter(p => p.node === fromNode);
+    for (const player of players) {
+      await player.move(targetNode);
     }
   }
 }

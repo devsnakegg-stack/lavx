@@ -26,7 +26,13 @@ export class SrcMan {
       identifier = `${defaultSearch}:${input}`;
     }
 
-    const data: any = await node.rest.loadTracks(identifier);
+    let data: any = await node.rest.loadTracks(identifier);
+
+    // Fallback if empty or error (might happen if plugin is missing for a URL)
+    if ((data.loadType === 'empty' || data.loadType === 'error') && this.isUrl(input)) {
+      const defaultSearch = this.client.options.defaultSearchPlatform || 'ytsearch';
+      data = await node.rest.loadTracks(`${defaultSearch}:${input}`);
+    }
 
     switch (data.loadType) {
       case 'track':
@@ -42,10 +48,6 @@ export class SrcMan {
       case 'error':
         return { type: 'error', tracks: [] };
       case 'empty':
-        // Try fallback if it was a URL that failed
-        if (this.isUrl(input) && !input.includes(':')) {
-           // Maybe try without prefix if prefix failed? Or just return empty
-        }
         return { type: 'search', tracks: [] };
       default:
         return { type: 'error', tracks: [] };
@@ -61,18 +63,12 @@ export class SrcMan {
     }
   }
 
-  private detectPlatform(url: string) {
-    if (url.includes('spotify.com')) return 'spotify';
-    if (url.includes('music.apple.com')) return 'apple';
-    if (url.includes('deezer.com')) return 'deezer';
-    if (url.includes('music.yandex.ru')) return 'yandex';
-    if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube';
-    if (url.includes('music.youtube.com')) return 'youtube music';
-    if (url.includes('soundcloud.com')) return 'soundcloud';
-    return null;
-  }
-
   private mapTrack(data: any): Track {
+    // Ensure duration is present in info
+    if (data.info && !data.info.duration && data.info.length) {
+      data.info.duration = data.info.length;
+    }
+
     return {
       track: data.encoded,
       info: data.info,
