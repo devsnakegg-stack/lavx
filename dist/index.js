@@ -181,8 +181,9 @@ var Rest = class {
       body: body ? JSON.stringify(body) : void 0
     });
     if (res.status >= 400) {
-      const error = await res.json().catch(() => ({ message: "Unknown error" }));
-      throw new Error(`Lavalink REST error: ${res.status} - ${error.message}`);
+      const error = await res.json().catch(() => null);
+      const message = error?.message || error?.error || JSON.stringify(error) || "Unknown error";
+      throw new Error(`Lavalink REST error: ${res.status} - ${message}`);
     }
     if (res.status === 204) return null;
     return res.json();
@@ -365,13 +366,7 @@ var Player = class {
         self_deaf: false
       }
     });
-    await this.node.rest.updatePlayer(this.guildId, {
-      voice: {
-        token: "",
-        endpoint: "",
-        sessionId: ""
-      }
-    });
+    await this.stop();
   }
   onTrackEnd(payload) {
     this.playing = false;
@@ -498,17 +493,6 @@ var QMan = class {
   }
 };
 
-// src/Map.ts
-var PlatformMap = {
-  spotify: "spsearch",
-  apple: "amsearch",
-  deezer: "dzsearch",
-  yandex: "ymsearch",
-  youtube: "ytsearch",
-  "youtube music": "ytmsearch",
-  soundcloud: "scsearch"
-};
-
 // src/SrcMan.ts
 var SrcMan = class {
   client;
@@ -520,13 +504,8 @@ var SrcMan = class {
     if (!node) throw new Error("No available nodes");
     let identifier = input;
     if (!this.isUrl(input)) {
-      identifier = `${PlatformMap.youtube}:${input}`;
-    } else {
-      const platform = this.detectPlatform(input);
-      const isDirect = ["youtube", "soundcloud", "youtube music"].includes(platform || "");
-      if (platform && PlatformMap[platform] && !isDirect && !input.startsWith(PlatformMap[platform])) {
-        identifier = `${PlatformMap[platform]}:${input}`;
-      }
+      const defaultSearch = this.client.options.defaultSearchPlatform || "ytsearch";
+      identifier = `${defaultSearch}:${input}`;
     }
     const data = await node.rest.loadTracks(identifier);
     switch (data.loadType) {
@@ -607,7 +586,10 @@ var Client = class {
   options;
   constructor(discord, options) {
     this.discord = discord;
-    this.options = options;
+    this.options = {
+      defaultSearchPlatform: "ytsearch",
+      ...options
+    };
     this.events = new EvtMan(this);
     this.node = new NodeMan(this);
     this.play = new PlayMan(this);
@@ -652,6 +634,17 @@ var Client = class {
     }
     return resolved;
   }
+};
+
+// src/Map.ts
+var PlatformMap = {
+  spotify: "spsearch",
+  apple: "amsearch",
+  deezer: "dzsearch",
+  yandex: "ymsearch",
+  youtube: "ytsearch",
+  "youtube music": "ytmsearch",
+  soundcloud: "scsearch"
 };
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {

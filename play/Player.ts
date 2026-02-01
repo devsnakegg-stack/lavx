@@ -94,13 +94,7 @@ export class Player {
       },
     });
 
-    await this.node.rest.updatePlayer(this.guildId, {
-      voice: {
-        token: '',
-        endpoint: '',
-        sessionId: '',
-      },
-    });
+    await this.stop();
   }
 
   public onTrackEnd(payload: any) {

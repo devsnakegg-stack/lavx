@@ -24,8 +24,9 @@ export class Rest {
     });
 
     if (res.status >= 400) {
-      const error = await res.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(`Lavalink REST error: ${res.status} - ${(error as any).message}`);
+      const error: any = await res.json().catch(() => null);
+      const message = error?.message || error?.error || JSON.stringify(error) || 'Unknown error';
+      throw new Error(`Lavalink REST error: ${res.status} - ${message}`);
     }
 
     if (res.status === 204) return null;

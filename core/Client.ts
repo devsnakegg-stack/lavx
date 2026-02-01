@@ -8,6 +8,7 @@ import { EvtMan } from '../events/EvtMan';
 export interface LavxOptions {
   nodes: NodeOptions[];
   send?: (guildId: string, payload: any) => void;
+  defaultSearchPlatform?: string;
 }
 
 export interface NodeOptions {
@@ -29,7 +30,10 @@ export class Client {
 
   constructor(discord: DjsClient, options: LavxOptions) {
     this.discord = discord;
-    this.options = options;
+    this.options = {
+      defaultSearchPlatform: 'ytsearch',
+      ...options,
+    };
 
     this.events = new EvtMan(this);
     this.node = new NodeMan(this);

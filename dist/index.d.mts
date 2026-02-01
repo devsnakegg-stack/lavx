@@ -200,6 +200,7 @@ declare class EvtMan extends EventEmitter {
 interface LavxOptions {
     nodes: NodeOptions[];
     send?: (guildId: string, payload: any) => void;
+    defaultSearchPlatform?: string;
 }
 interface NodeOptions {
     name?: string;

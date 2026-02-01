@@ -22,15 +22,8 @@ export class SrcMan {
     let identifier = input;
 
     if (!this.isUrl(input)) {
-      identifier = `${PlatformMap.youtube}:${input}`;
-    } else {
-      const platform = this.detectPlatform(input);
-      const isDirect = ['youtube', 'soundcloud', 'youtube music'].includes(platform || '');
-
-      if (platform && PlatformMap[platform] && !isDirect && !input.startsWith(PlatformMap[platform])) {
-        // Many plugins (LavaSrc) prefer prefix:url for resolution (e.g., spsearch:https://open.spotify.com/...)
-        identifier = `${PlatformMap[platform]}:${input}`;
-      }
+      const defaultSearch = this.client.options.defaultSearchPlatform || 'ytsearch';
+      identifier = `${defaultSearch}:${input}`;
     }
 
     const data: any = await node.rest.loadTracks(identifier);

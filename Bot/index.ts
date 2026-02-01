@@ -55,10 +55,17 @@ client.on('messageCreate', async (message: Message) => {
     if (!res) return message.reply('No results found');
 
     if (res.type === 'playlist') {
-        message.reply(`Loaded playlist ${res.playlistName} with ${res.tracks.length} tracks`);
+      message.reply(`Loaded playlist **${res.playlistName}** with ${res.tracks.length} tracks\nURL: ${res.tracks[0].info.uri}`);
     } else {
-        message.reply(`Added to queue: ${res.tracks[0].info.title}`);
+      message.reply(`Added to queue: **${res.tracks[0].info.title}**\nURL: ${res.tracks[0].info.uri}`);
     }
+  }
+
+  if (command === 'defaultsearch') {
+    const platform = args[0];
+    if (!platform) return message.reply(`Current default search platform: \`${lavx.options.defaultSearchPlatform}\``);
+    lavx.options.defaultSearchPlatform = platform;
+    message.reply(`Default search platform changed to \`${platform}\``);
   }
 
   if (command === 'pause') {
