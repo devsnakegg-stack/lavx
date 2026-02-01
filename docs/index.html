@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lavx Documentation</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --fg: #000000;
+            --accent: #f0f0f0;
+            --border: #e0e0e0;
+            --bubble-bg: #f8f8f8;
+            --sidebar-width: 280px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--fg);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        aside {
+            width: var(--sidebar-width);
+            border-right: 1px solid var(--border);
+            padding: 2rem;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            background: var(--bg);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        nav ul {
+            list-style: none;
+        }
+
+        nav li {
+            margin-bottom: 0.5rem;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: #666;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        nav a:hover, nav a.active {
+            background: var(--accent);
+            color: var(--fg);
+        }
+
+        /* Main Content */
+        main {
+            margin-left: var(--sidebar-width);
+            padding: 4rem;
+            flex: 1;
+            max-width: 1000px;
+        }
+
+        section {
+            margin-bottom: 4rem;
+        }
+
+        h1 { font-size: 3rem; font-weight: 800; margin-bottom: 1rem; }
+        h2 { font-size: 2rem; font-weight: 700; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-top: 3rem; }
+        h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem; margin-top: 2rem; }
+
+        p { line-height: 1.6; color: #333; margin-bottom: 1rem; }
+
+        code {
+            background: var(--bubble-bg);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background: #111;
+            color: #fff;
+            padding: 1.5rem;
+            border-radius: 12px;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .bubble {
+            background: var(--bubble-bg);
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            border-radius: 16px;
+            margin-bottom: 1rem;
+            transition: transform 0.2s;
+        }
+
+        .bubble:hover {
+            transform: translateY(-2px);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .tag {
+            display: inline-block;
+            background: var(--fg);
+            color: var(--bg);
+            padding: 0.2rem 0.6rem;
+            border-radius: 100px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .method-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .method-name { font-weight: 700; font-family: monospace; }
+        .method-params { color: #666; font-family: monospace; }
+
+        @media (max-width: 768px) {
+            aside { display: none; }
+            main { margin-left: 0; padding: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <aside>
+        <div class="logo">
+            <i data-lucide="zap"></i> lavx
+        </div>
+        <nav>
+            <ul>
+                <li><a href="#intro" class="active"><i data-lucide="home"></i> Introduction</a></li>
+                <li><a href="#setup"><i data-lucide="settings"></i> Setup</a></li>
+                <li><a href="#managers"><i data-lucide="layers"></i> Managers</a></li>
+                <li><a href="#player"><i data-lucide="play-circle"></i> Player</a></li>
+                <li><a href="#queue"><i data-lucide="list-music"></i> Queue</a></li>
+                <li><a href="#events"><i data-lucide="bell"></i> Events</a></li>
+                <li><a href="#bot"><i data-lucide="bot"></i> Example Bot</a></li>
+            </ul>
+        </nav>
+    </aside>
+
+    <main>
+        <section id="intro">
+            <h1>lavx</h1>
+            <p>A minimal, TypeScript-first, production-grade Lavalink client for Discord.js.</p>
+            <div class="bubble">
+                <p><strong>Philosophy:</strong> lavx is a control layer. It handles the orchestration of Lavalink nodes and Discord voice connections, leaving platform resolution to Lavalink plugins.</p>
+            </div>
+        </section>
+
+        <section id="setup">
+            <h2>Setup</h2>
+            <h3>Installation</h3>
+            <pre>npm install lavx discord.js ws undici</pre>
+            <h3>Initialization</h3>
+            <pre>
+import { Client as DjsClient } from 'discord.js';
+import { Client as LavxClient } from 'lavx';
+
+const djs = new DjsClient({ /* intents */ });
+const lavx = new LavxClient(djs, {
+  nodes: [{ host: 'localhost', port: 2333, auth: 'youshallnotpass' }]
+});</pre>
+        </section>
+
+        <section id="managers">
+            <h2>Core Managers</h2>
+            <div class="grid">
+                <div class="bubble">
+                    <div class="tag">NodeMan</div>
+                    <p>Handles Lavalink node lifecycles, load balancing, and failover.</p>
+                </div>
+                <div class="bubble">
+                    <div class="tag">PlayMan</div>
+                    <p>Manages player instances across all guilds.</p>
+                </div>
+                <div class="bubble">
+                    <div class="tag">QMan</div>
+                    <p>Persistent (or memory-based) queue management per guild.</p>
+                </div>
+                <div class="bubble">
+                    <div class="tag">SrcMan</div>
+                    <p>Resolves queries into tracks and handles multiplatform routing.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="player">
+            <h2>Player API</h2>
+            <div class="bubble">
+                <div class="method-info">
+                    <span class="method-name">.play()</span>
+                    <span class="method-params">(options?)</span>
+                </div>
+                <p>Starts playback. Automatically resolves UnresolvedTracks.</p>
+            </div>
+            <div class="bubble">
+                <div class="method-info">
+                    <span class="method-name">.pause()</span>
+                    <span class="method-params">(state: boolean)</span>
+                </div>
+                <p>Pauses or resumes the audio.</p>
+            </div>
+            <div class="bubble">
+                <div class="method-info">
+                    <span class="method-name">.setFilters()</span>
+                    <span class="method-params">(filters: any)</span>
+                </div>
+                <p>Applies Lavalink filters like Equalizer or Timescale.</p>
+            </div>
+            <div class="bubble">
+                <div class="method-info">
+                    <span class="method-name">.setAudioOutput()</span>
+                    <span class="method-params">('mono' | 'stereo' | 'left' | 'right')</span>
+                </div>
+                <p>Configures audio channel mixing.</p>
+            </div>
+        </section>
+
+        <section id="queue">
+            <h2>Queue Management</h2>
+            <p>Access via <code>player.node.client.queue.get(guildId)</code></p>
+            <div class="grid">
+                <div class="bubble">
+                    <h3>Autoplay</h3>
+                    <p>Toggles recommendation-based playback when the queue ends.</p>
+                </div>
+                <div class="bubble">
+                    <h3>History</h3>
+                    <p>Automatically keeps track of the last 100 played tracks.</p>
+                </div>
+                <div class="bubble">
+                    <h3>Loop Modes</h3>
+                    <p>Support for <code>None</code>, <code>Track</code>, and <code>Queue</code> looping.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="events">
+            <h2>Event System</h2>
+            <div class="bubble">
+                <p>Listen using <code>lavx.events.on('eventName', ... )</code></p>
+                <ul>
+                    <li><code>trackStart</code>: When a track begins.</li>
+                    <li><code>trackEnd</code>: When a track finishes.</li>
+                    <li><code>nodeConnect</code>: When a Lavalink node is ready.</li>
+                    <li><code>playerMove</code>: When a player moves voice channels.</li>
+                    <li><code>queueEnd</code>: When no more tracks are available.</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="bot">
+            <h2>Example Bot</h2>
+            <p>A complete implementation can be found in the <code>/Bot</code> folder of the repository.</p>
+            <pre>
+// !play <query>
+const res = await lavx.playInput(guildId, query, user);
+if (res) {
+    const player = lavx.play.get(guildId) || lavx.play.create({ guildId });
+    if (!player.state.connected) await player.connect(voiceChannelId);
+    // Track is added and started automatically
+}</pre>
+        </section>
+    </main>
+
+    <script>
+        lucide.createIcons();
+
+        // Simple scroll spy
+        window.addEventListener('scroll', () => {
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('nav a');
+
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href').includes(current)) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
