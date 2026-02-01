@@ -51,6 +51,9 @@ declare class SrcMan {
     readonly client: Client;
     constructor(client: Client);
     resolve(input: string, requester?: any): Promise<ResolveResult>;
+    detectSource(url: string): string;
+    fallbackSearch(query: string, requester?: any): Promise<ResolveResult>;
+    bestSource(track: Track): Promise<Track>;
     createUnresolved(query: string, requester?: any): UnresolvedTrack;
     private validateInput;
     private isUrl;
@@ -144,6 +147,13 @@ declare class Player {
     };
     volume: number;
     filters: any;
+    options: {
+        autoRecover: boolean;
+        autoResume: boolean;
+        gapless: boolean;
+        smartBuffer: boolean;
+    };
+    private fadeInterval;
     constructor(node: Node, guildId: string);
     play(options?: {
         track?: string;
@@ -155,9 +165,29 @@ declare class Player {
     pause(state?: boolean): Promise<void>;
     resume(): Promise<void>;
     seek(position: number): Promise<void>;
+    rewind(ms: number): Promise<void>;
+    forward(ms: number): Promise<void>;
+    restart(): Promise<void>;
     setVolume(volume: number): Promise<void>;
+    fadeIn(ms: number): Promise<void>;
+    fadeOut(ms: number): Promise<void>;
     setFilters(filters: any): Promise<void>;
+    clearFilters(): Promise<void>;
+    setEQ(bands: {
+        band: number;
+        gain: number;
+    }[]): Promise<void>;
     setAudioOutput(output: 'left' | 'right' | 'mono' | 'stereo'): Promise<void>;
+    balance(left: number, right: number): Promise<void>;
+    mono(): Promise<void>;
+    stereo(): Promise<void>;
+    bassboost(level?: number): Promise<void>;
+    nightcore(): Promise<void>;
+    vaporwave(): Promise<void>;
+    autoplay(): Promise<boolean>;
+    autoRecover(): Promise<void>;
+    autoResume(): Promise<void>;
+    preloadNext(): Promise<void>;
     moveToNode(toNode: Node): Promise<void>;
     moveToChannel(channelId: string, options?: {
         mute?: boolean;
@@ -292,6 +322,41 @@ declare class PlayMan {
     handleVoiceUpdate(data: any): void;
 }
 
+interface HistoryMetadata {
+    title: string;
+    author: string;
+    uri: string;
+    length: number;
+    source: string;
+    time: number;
+    requester?: any;
+}
+interface HistoryStore {
+    get: (guildId: string) => Promise<HistoryMetadata[]>;
+    push: (guildId: string, metadata: HistoryMetadata) => Promise<void>;
+    clear: (guildId: string) => Promise<void>;
+}
+declare class MemoryHistoryStore implements HistoryStore {
+    private stores;
+    get(guildId: string): Promise<HistoryMetadata[]>;
+    push(guildId: string, metadata: HistoryMetadata): Promise<void>;
+    clear(guildId: string): Promise<void>;
+}
+declare class History {
+    readonly guildId: string;
+    private store;
+    private maxLimit;
+    constructor(guildId: string, options?: {
+        store?: HistoryStore;
+        maxLimit?: number;
+    });
+    push(track: Track): Promise<void>;
+    get(max?: number): Promise<HistoryMetadata[]>;
+    clear(): Promise<void>;
+    last(): Promise<HistoryMetadata | null>;
+    size(): Promise<number>;
+}
+
 declare enum LoopMode {
     None = "none",
     Track = "track",
@@ -299,7 +364,6 @@ declare enum LoopMode {
 }
 interface StoredQueue {
     current: Track | null;
-    previous: Track[];
     tracks: (Track | UnresolvedTrack)[];
 }
 interface QueueStore {
@@ -316,15 +380,25 @@ declare class MemoryQueueStore implements QueueStore {
 declare class Queue {
     tracks: (Track | UnresolvedTrack)[];
     current: Track | null;
-    previous: Track[];
+    readonly history: History;
     loop: LoopMode;
     autoplay: boolean;
     private store;
     private guildId;
-    constructor(guildId: string, store?: QueueStore);
+    constructor(guildId: string, options?: {
+        store?: QueueStore;
+        historyStore?: HistoryStore;
+    });
     add(track: (Track | UnresolvedTrack) | (Track | UnresolvedTrack)[]): Promise<void>;
+    addNext(track: (Track | UnresolvedTrack) | (Track | UnresolvedTrack)[]): Promise<void>;
+    insert(index: number, track: Track | UnresolvedTrack): Promise<void>;
     next(): Promise<boolean>;
     skip(): Promise<boolean>;
+    jump(index: number): Promise<Track | null>;
+    previous(): Promise<HistoryMetadata | null>;
+    move(from: number, to: number): Promise<void>;
+    swap(i1: number, i2: number): Promise<void>;
+    dedupe(): Promise<void>;
     shuffle(): Promise<void>;
     clear(): Promise<void>;
     remove(index: number): Promise<Track | UnresolvedTrack | null>;
@@ -397,4 +471,4 @@ declare class Client {
 
 declare const PlatformMap: Record<string, string>;
 
-export { Client, DestroyReason, EvtMan, type LavxEvents, type LavxOptions, LoopMode, MemoryQueueStore, Node, NodeMan, type NodeOptions, PlatformMap, PlayMan, Player, type PlayerOptions, type PluginInfo, QMan, Queue, type QueueStore, type ResolveResult, Rest, Sock, type SourceNames, SrcMan, type StoredQueue, type Track, type TrackInfo, type UnresolvedTrack, Voice, isUnresolvedTrack };
+export { Client, DestroyReason, EvtMan, History, type HistoryMetadata, type HistoryStore, type LavxEvents, type LavxOptions, LoopMode, MemoryHistoryStore, MemoryQueueStore, Node, NodeMan, type NodeOptions, PlatformMap, PlayMan, Player, type PlayerOptions, type PluginInfo, QMan, Queue, type QueueStore, type ResolveResult, Rest, Sock, type SourceNames, SrcMan, type StoredQueue, type Track, type TrackInfo, type UnresolvedTrack, Voice, isUnresolvedTrack };

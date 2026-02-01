@@ -5,6 +5,7 @@ export * from './Rest';
 export * from './Player';
 export * from './PlayMan';
 export * from './Queue';
+export * from './History';
 export * from './Track';
 export * from './QMan';
 export * from './SrcMan';

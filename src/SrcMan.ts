@@ -1,5 +1,4 @@
 import { Client } from './Client';
-import { PlatformMap } from './Map';
 import { Track, UnresolvedTrack } from './Track';
 
 export interface ResolveResult {
@@ -59,6 +58,27 @@ export class SrcMan {
     }
   }
 
+  public detectSource(url: string): string {
+      if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube';
+      if (url.includes('spotify.com')) return 'spotify';
+      if (url.includes('deezer.com')) return 'deezer';
+      if (url.includes('apple.com')) return 'apple-music';
+      if (url.includes('soundcloud.com')) return 'soundcloud';
+      return 'unknown';
+  }
+
+  public async fallbackSearch(query: string, requester?: any): Promise<ResolveResult> {
+      const defaultSearch = this.client.options.defaultSearchPlatform || 'ytsearch';
+      return this.resolve(`${defaultSearch}:${query}`, requester);
+  }
+
+  public async bestSource(track: Track): Promise<Track> {
+      // Logic to find the best quality source for a track
+      // For now, we'll just return the track as is,
+      // but in a real implementation we could try to resolve it on other platforms.
+      return track;
+  }
+
   public createUnresolved(query: string, requester?: any): UnresolvedTrack {
       const track: UnresolvedTrack = {
           resolve: async (player) => {
@@ -66,7 +86,6 @@ export class SrcMan {
               if (res.tracks.length > 0 && !('resolve' in res.tracks[0])) {
                   const resolved = res.tracks[0] as Track;
                   Object.assign(track, resolved);
-                  // Ensure current is updated if it was this track
                   const queue = player.node.client.queue.get(player.guildId);
                   if (queue.current === track) {
                       queue.current = track as Track;

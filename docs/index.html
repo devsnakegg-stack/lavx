@@ -167,11 +167,10 @@
             <ul>
                 <li><a href="#intro" class="active"><i data-lucide="home"></i> Introduction</a></li>
                 <li><a href="#setup"><i data-lucide="settings"></i> Setup</a></li>
-                <li><a href="#managers"><i data-lucide="layers"></i> Managers</a></li>
-                <li><a href="#player"><i data-lucide="play-circle"></i> Player</a></li>
-                <li><a href="#queue"><i data-lucide="list-music"></i> Queue</a></li>
-                <li><a href="#events"><i data-lucide="bell"></i> Events</a></li>
-                <li><a href="#bot"><i data-lucide="bot"></i> Example Bot</a></li>
+                <li><a href="#player"><i data-lucide="play-circle"></i> Player Control</a></li>
+                <li><a href="#queue"><i data-lucide="list-music"></i> Advanced Queue</a></li>
+                <li><a href="#history"><i data-lucide="history"></i> History System</a></li>
+                <li><a href="#smart"><i data-lucide="brain"></i> Smart Systems</a></li>
             </ul>
         </nav>
     </aside>
@@ -179,151 +178,67 @@
     <main>
         <section id="intro">
             <h1>lavx</h1>
-            <p>A minimal, TypeScript-first, production-grade Lavalink client for Discord.js.</p>
-            <div class="bubble">
-                <p><strong>Philosophy:</strong> lavx is a control layer. It handles the orchestration of Lavalink nodes and Discord voice connections, leaving platform resolution to Lavalink plugins.</p>
-            </div>
-        </section>
-
-        <section id="setup">
-            <h2>Setup</h2>
-            <h3>Installation</h3>
-            <pre>npm install lavx discord.js ws undici</pre>
-            <h3>Initialization</h3>
-            <pre>
-import { Client as DjsClient } from 'discord.js';
-import { Client as LavxClient } from 'lavx';
-
-const djs = new DjsClient({ /* intents */ });
-const lavx = new LavxClient(djs, {
-  nodes: [{ host: 'localhost', port: 2333, auth: 'youshallnotpass' }]
-});</pre>
-        </section>
-
-        <section id="managers">
-            <h2>Core Managers</h2>
-            <div class="grid">
-                <div class="bubble">
-                    <div class="tag">NodeMan</div>
-                    <p>Handles Lavalink node lifecycles, load balancing, and failover.</p>
-                </div>
-                <div class="bubble">
-                    <div class="tag">PlayMan</div>
-                    <p>Manages player instances across all guilds.</p>
-                </div>
-                <div class="bubble">
-                    <div class="tag">QMan</div>
-                    <p>Persistent (or memory-based) queue management per guild.</p>
-                </div>
-                <div class="bubble">
-                    <div class="tag">SrcMan</div>
-                    <p>Resolves queries into tracks and handles multiplatform routing.</p>
-                </div>
-            </div>
+            <p>Advanced, professional-grade Lavalink client for Discord.js.</p>
         </section>
 
         <section id="player">
-            <h2>Player API</h2>
+            <h2>Music Control</h2>
             <div class="bubble">
-                <div class="method-info">
-                    <span class="method-name">.play()</span>
-                    <span class="method-params">(options?)</span>
-                </div>
-                <p>Starts playback. Automatically resolves UnresolvedTracks.</p>
+                <div class="method-info"><span class="method-name">.rewind / .forward</span><span class="method-params">(ms)</span></div>
+                <p>Jump back or ahead in the current track.</p>
             </div>
             <div class="bubble">
-                <div class="method-info">
-                    <span class="method-name">.pause()</span>
-                    <span class="method-params">(state: boolean)</span>
-                </div>
-                <p>Pauses or resumes the audio.</p>
+                <div class="method-info"><span class="method-name">.fadeIn / .fadeOut</span><span class="method-params">(ms)</span></div>
+                <p>Smoothly transition audio volume.</p>
             </div>
             <div class="bubble">
-                <div class="method-info">
-                    <span class="method-name">.setFilters()</span>
-                    <span class="method-params">(filters: any)</span>
-                </div>
-                <p>Applies Lavalink filters like Equalizer or Timescale.</p>
+                <div class="method-info"><span class="method-name">.bassboost / .nightcore / .vaporwave</span><span class="method-params">()</span></div>
+                <p>Instantly apply popular audio filters.</p>
             </div>
             <div class="bubble">
-                <div class="method-info">
-                    <span class="method-name">.setAudioOutput()</span>
-                    <span class="method-params">('mono' | 'stereo' | 'left' | 'right')</span>
-                </div>
-                <p>Configures audio channel mixing.</p>
+                <div class="method-info"><span class="method-name">.balance / .mono / .stereo</span><span class="method-params">()</span></div>
+                <p>Fine-grained control over audio channels.</p>
             </div>
         </section>
 
         <section id="queue">
-            <h2>Queue Management</h2>
-            <p>Access via <code>player.node.client.queue.get(guildId)</code></p>
-            <div class="grid">
-                <div class="bubble">
-                    <h3>Autoplay</h3>
-                    <p>Toggles recommendation-based playback when the queue ends.</p>
-                </div>
-                <div class="bubble">
-                    <h3>History</h3>
-                    <p>Automatically keeps track of the last 100 played tracks.</p>
-                </div>
-                <div class="bubble">
-                    <h3>Loop Modes</h3>
-                    <p>Support for <code>None</code>, <code>Track</code>, and <code>Queue</code> looping.</p>
-                </div>
-            </div>
-        </section>
-
-        <section id="events">
-            <h2>Event System</h2>
+            <h2>Advanced Queue</h2>
             <div class="bubble">
-                <p>Listen using <code>lavx.events.on('eventName', ... )</code></p>
-                <ul>
-                    <li><code>trackStart</code>: When a track begins.</li>
-                    <li><code>trackEnd</code>: When a track finishes.</li>
-                    <li><code>nodeConnect</code>: When a Lavalink node is ready.</li>
-                    <li><code>playerMove</code>: When a player moves voice channels.</li>
-                    <li><code>queueEnd</code>: When no more tracks are available.</li>
-                </ul>
+                <div class="method-info"><span class="method-name">.jump</span><span class="method-params">(index)</span></div>
+                <p>Instantly play a track at a specific position.</p>
+            </div>
+            <div class="bubble">
+                <div class="method-info"><span class="method-name">.move / .swap</span><span class="method-params">(from, to)</span></div>
+                <p>Reorganize your queue with ease.</p>
+            </div>
+            <div class="bubble">
+                <div class="method-info"><span class="method-name">.dedupe</span><span class="method-params">()</span></div>
+                <p>Clean up duplicate tracks from your queue.</p>
             </div>
         </section>
 
-        <section id="bot">
-            <h2>Example Bot</h2>
-            <p>A complete implementation can be found in the <code>/Bot</code> folder of the repository.</p>
-            <pre>
-// !play <query>
-const res = await lavx.playInput(guildId, query, user);
-if (res) {
-    const player = lavx.play.get(guildId) || lavx.play.create({ guildId });
-    if (!player.state.connected) await player.connect(voiceChannelId);
-    // Track is added and started automatically
-}</pre>
+        <section id="history">
+            <h2>History System</h2>
+            <p>A memory-safe ring buffer for tracking recently played tracks.</p>
+            <div class="bubble">
+                <p><code>history.get(max)</code>: Retrieve last tracks.</p>
+                <p><code>history.last()</code>: Get the most recent track metadata.</p>
+                <p><code>history.size()</code>: Current history count.</p>
+            </div>
+        </section>
+
+        <section id="smart">
+            <h2>Smart Systems</h2>
+            <div class="grid">
+                <div class="bubble"><div class="tag">AutoRecover</div><p>Resumes playback automatically after crashes.</p></div>
+                <div class="bubble"><div class="tag">PreloadNext</div><p>Resolves the next track metadata before it starts.</p></div>
+                <div class="bubble"><div class="tag">Gapless</div><p>Optimized transitions between tracks.</p></div>
+            </div>
         </section>
     </main>
 
     <script>
         lucide.createIcons();
-
-        // Simple scroll spy
-        window.addEventListener('scroll', () => {
-            const sections = document.querySelectorAll('section');
-            const navLinks = document.querySelectorAll('nav a');
-
-            let current = '';
-            sections.forEach(section => {
-                const sectionTop = section.offsetTop;
-                if (pageYOffset >= sectionTop - 100) {
-                    current = section.getAttribute('id');
-                }
-            });
-
-            navLinks.forEach(link => {
-                link.classList.remove('active');
-                if (link.getAttribute('href').includes(current)) {
-                    link.classList.add('active');
-                }
-            });
-        });
     </script>
 </body>
 </html>

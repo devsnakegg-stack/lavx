@@ -101,12 +101,19 @@ client.on('messageCreate', async (message: Message) => {
   }
 
   if (command === 'previous') {
-    if (!queue.previous.length) return message.reply('No previous tracks');
-    const prev = queue.previous.pop()!;
-    queue.tracks.unshift(queue.current!);
-    queue.current = prev;
-    await player?.play();
-    message.reply(`Playing previous: ${queue.current.info?.title || 'Unknown'}`);
+    const prev = await queue.previous();
+    if (!prev) return message.reply('No previous tracks');
+
+    // For simplicity in this bot, we'll just search for the track again
+    const res = await lavx.playInput(message.guild!.id, prev.uri, message.author);
+    if (res && res.tracks.length) {
+        if (queue.current) await queue.addNext(queue.current);
+        queue.current = res.tracks[0] as any;
+        await player?.play();
+        message.reply(`Playing previous: ${prev.title}`);
+    } else {
+        message.reply('Could not resolve previous track');
+    }
   }
 
   if (command === 'shuffle') {
@@ -174,10 +181,57 @@ client.on('messageCreate', async (message: Message) => {
 
   if (command === 'move') {
     if (!player) return message.reply('No player found');
+    const from = parseInt(args[0]);
+    const to = parseInt(args[1]);
+    if (!isNaN(from) && !isNaN(to)) {
+        await queue.move(from - 1, to - 1);
+        return message.reply(`Moved track from ${from} to ${to}`);
+    }
     const vc = message.member?.voice.channel;
     if (!vc) return message.reply('Join a voice channel first');
     await player.moveToChannel(vc.id);
     message.reply(`Moved to ${vc.name}`);
+  }
+
+  if (command === 'jump') {
+      if (!player) return message.reply('No player found');
+      const index = parseInt(args[0]);
+      if (isNaN(index)) return message.reply('Invalid index');
+      await queue.jump(index - 1);
+      await player.play();
+      message.reply(`Jumped to track ${index}`);
+  }
+
+  if (command === 'history') {
+      const history = await queue.history.get();
+      if (!history.length) return message.reply('History is empty');
+      const list = history.map((t, i) => `${i + 1}. ${t.title}`).join('\n');
+      message.reply(`**Last Played:**\n${list}`);
+  }
+
+  if (command === 'bassboost') {
+      if (!player) return message.reply('No player found');
+      const level = parseInt(args[0]) || 3;
+      await player.bassboost(level);
+      message.reply(`Bassboost set to level ${level}`);
+  }
+
+  if (command === 'fadein') {
+      if (!player) return message.reply('No player found');
+      await player.fadeIn(5000);
+      message.reply('Fading in (5s)...');
+  }
+
+  if (command === 'rewind') {
+      if (!player) return message.reply('No player found');
+      await player.rewind(10000);
+      message.reply('Rewound 10s');
+  }
+
+  if (command === 'forward') {
+      if (!player) return message.reply('No player found');
+      await player.forward(10000);
+      message.reply('Forwarded 10s');
   }
 
   if (command === 'queue') {

@@ -12,52 +12,6 @@
 npm install lavx discord.js ws undici
 ```
 
-### Module Support
-
-#### ESM (ES Modules)
-```typescript
-import { Client as LavxClient } from 'lavx';
-```
-
-#### CJS (CommonJS)
-```javascript
-const { Client: LavxClient } = require('lavx');
-```
-
-### Initializing the Client
-
-```typescript
-import { Client as DjsClient, GatewayIntentBits } from 'discord.js';
-import { Client as LavxClient } from 'lavx';
-
-const djs = new DjsClient({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildVoiceStates,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ],
-});
-
-const lavx = new LavxClient(djs, {
-  nodes: [
-    {
-      name: 'main',
-      host: 'localhost',
-      port: 2333,
-      auth: 'youshallnotpass',
-      secure: false
-    }
-  ],
-  defaultSearchPlatform: 'ytsearch', // Default search prefix
-  maxReconnectAttempts: 10,
-  whitelist: ['youtube.com', 'spotify.com'], // Optional domain whitelist
-  blacklist: ['malicious.site'] // Optional domain blacklist
-});
-
-djs.login('YOUR_TOKEN');
-```
-
 ---
 
 ## 🏗 Core API
@@ -68,109 +22,77 @@ The main entry point of the library.
 
 #### `playInput(guildId: string, input: string, requester?: any)`
 Resolves an input and automatically starts playback if the queue was empty.
-- **guildId**: The Discord guild ID.
-- **input**: A search query or URL (YouTube, Spotify, etc.).
-- **requester**: Optional data to attach to the tracks.
-
-```typescript
-await lavx.playInput(message.guildId, 'never gonna give you up', message.author);
-```
-
----
-
-### Node Management (`client.node`)
-
-#### `best()`
-Returns the most available node based on current player load. Automatically filters for connected and ready nodes.
-
-#### `migrate(fromNode: Node, toNode?: Node)`
-Migrates all players from one node to another (e.g., during maintenance).
 
 ---
 
 ### Player API (`client.play`)
 
 #### `Player` instance methods:
-- `play(options?)`: Starts playing the current track in the queue. Automatically resolves unresolved tracks.
+- `play(options?)`: Starts playing the current track.
 - `stop()`: Stops playback.
 - `pause(state: boolean)`: Pauses or resumes playback.
 - `resume()`: Shorthand for `pause(false)`.
 - `seek(position: number)`: Seeks to a specific position (ms).
-- `setVolume(volume: number)`: Sets player volume (0-1000).
+- `rewind(ms: number)`: Rewind by ms.
+- `forward(ms: number)`: Forward by ms.
+- `restart()`: Restart current track.
+- `setVolume(volume: number)`: Sets volume (0-1000).
+- `fadeIn(ms: number)`: Fade in audio.
+- `fadeOut(ms: number)`: Fade out audio.
+- `setEQ(bands: { band: number; gain: number }[])`: Set equalizer bands.
 - `setFilters(filters: any)`: Applies Lavalink filters.
-- `setAudioOutput(output: 'left' | 'right' | 'mono' | 'stereo')`: Quickly set audio channel mixing.
+- `clearFilters()`: Resets all filters.
+- `balance(left, right)`: Set audio balance.
+- `mono()`: Set mono output.
+- `stereo()`: Set stereo output.
+- `bassboost(level?)`: Apply bassboost (1-5).
+- `nightcore()`: Apply nightcore filter.
+- `vaporwave()`: Apply vaporwave filter.
 - `connect(channelId: string, options?)`: Joins a voice channel.
 - `disconnect()`: Leaves the voice channel.
-- `moveToChannel(channelId: string, options?)`: Moves the player to a different voice channel.
-- `moveToNode(toNode: Node)`: Moves the player to a different Lavalink node mid-playback.
-- `destroy(reason?: DestroyReason)`: Destroys the player and cleans up resources with a specific reason.
+- `moveToNode(toNode: Node)`: Migrate to a different node.
+- `destroy(reason?)`: Destroys the player.
 
-#### Filter Presets
-Common presets available on `player.filterPresets`:
-`bassboost`, `nightcore`, `vaporwave`, `pop`, `soft`, `electronic`, `dance`, `classical`, `rock`, `fullbass`, `karaoke`, `tremolo`, `vibrato`, `rotation`, `distortion`, `lowpass`.
-
-Example:
-```typescript
-await player.setFilters(player.filterPresets.bassboost);
-```
+#### Smart Systems
+- `autoplay()`: Toggle autoplay.
+- `autoRecover()`: Toggle auto recovery.
+- `autoResume()`: Toggle auto resume.
+- `preloadNext()`: Pre-resolve the next track.
 
 ---
 
 ### Queue API (`client.queue`)
 
-#### `Queue` instance properties/methods:
-- `tracks`: The array of upcoming tracks (supports `Track` and `UnresolvedTrack`).
-- `current`: The currently playing track.
-- `previous`: An array of previously played tracks (history, max 100).
-- `loop`: Loop mode (`none`, `track`, `queue`).
-- `autoplay`: Boolean. If enabled, it will fetch related tracks from various platforms when the queue ends.
-- `add(track)`: Adds track(s) to the queue.
-- `next()`: Moves to the next track.
-- `skip()`: Shorthand for `next()`.
-- `shuffle()`: Shuffles the upcoming tracks.
-- `clear()`: Clears the entire queue.
-- `remove(index)`: Removes a specific track by index.
-- `find(query)`: Search for tracks in the queue by title or author.
-
-#### Custom Queue Stores
-You can implement the `QueueStore` interface to use Redis or other databases:
-```typescript
-interface QueueStore {
-  get: (guildId: string) => Promise<StoredQueue | null>;
-  set: (guildId: string, value: StoredQueue) => Promise<void>;
-  delete: (guildId: string) => Promise<void>;
-}
-```
+#### `Queue` instance methods:
+- `add(track)`: Add tracks to queue.
+- `addNext(track)`: Add tracks to play next.
+- `insert(index, track)`: Insert track at index.
+- `next()`: Move to next track.
+- `skip()`: Skip current track.
+- `previous()`: Play previous track from history.
+- `jump(index)`: Jump to a specific index.
+- `move(from, to)`: Move track position.
+- `swap(i1, i2)`: Swap two tracks.
+- `dedupe()`: Remove duplicates.
+- `shuffle()`: Shuffle queue.
+- `clear()`: Clear queue and history.
+- `remove(index)`: Remove track by index.
 
 ---
 
-### Events (`client.events`)
+### History System (`queue.history`)
 
-Listen to events using `lavx.events.on(eventName, callback)`.
-
-| Event | Description |
-|---|---|
-| `nodeConnect` | When a node successfully connects. |
-| `nodeDisconnect` | When a node disconnects. |
-| `nodeError` | When a node encounters an error. |
-| `nodeReady` | When a node is ready (session ID received). |
-| `playerCreate` | When a new player is created. |
-| `playerDestroy` | When a player is destroyed (includes `DestroyReason`). |
-| `playerMove` | When a player moves to a different voice channel. |
-| `trackStart` | When a track starts playing. |
-| `trackEnd` | When a track finishes. |
-| `trackError` | When a track encounters an exception. |
-| `trackStuck` | When a track gets stuck. |
-| `queueEnd` | When the queue has no more tracks to play. |
+- `get(max?)`: Get last played tracks.
+- `clear()`: Clear history.
+- `last()`: Get last played track.
+- `size()`: Get history size.
 
 ---
 
-## 🌍 Multiplatform Support
+### Source Management (`client.src`)
 
-`lavx` routes inputs based on their content:
-
-- **Plain Text**: Defaults to `defaultSearchPlatform` (default: `ytsearch:`).
-- **URLs**: Automatically handled. If a specific plugin (like LavaSrc) is missing, it falls back to searching via the default platform.
-- **Unresolved Tracks**: You can add tracks by query without fetching full data immediately using `client.src.createUnresolved(query)`. Full data is fetched only when the track is about to play.
-
-Requires Lavalink plugins like **LavaSrc** or **LavaSearch** on the server side for optimized platform metadata and recommendations.
+- `resolve(input)`: Resolve query/URL.
+- `detectSource(url)`: Detect platform from URL.
+- `fallbackSearch(query)`: Search using default platform.
+- `bestSource(track)`: Find best quality source.
+- `createUnresolved(query)`: Create a lazy-loading track.

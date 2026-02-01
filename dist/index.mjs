@@ -298,6 +298,13 @@ var Player = class {
   };
   volume = 100;
   filters = {};
+  options = {
+    autoRecover: false,
+    autoResume: false,
+    gapless: false,
+    smartBuffer: false
+  };
+  fadeInterval = null;
   constructor(node, guildId) {
     this.node = node;
     this.guildId = guildId;
@@ -341,32 +348,144 @@ var Player = class {
   async seek(position) {
     await this.node.rest.updatePlayer(this.guildId, { position });
   }
+  async rewind(ms) {
+    const newPos = Math.max(0, this.state.position - ms);
+    await this.seek(newPos);
+  }
+  async forward(ms) {
+    await this.seek(this.state.position + ms);
+  }
+  async restart() {
+    await this.seek(0);
+  }
   async setVolume(volume) {
     await this.node.rest.updatePlayer(this.guildId, { volume });
     this.volume = volume;
+  }
+  async fadeIn(ms) {
+    if (this.fadeInterval) clearInterval(this.fadeInterval);
+    const targetVolume = this.volume;
+    let currentVolume = 0;
+    await this.setVolume(currentVolume);
+    const step = targetVolume / (ms / 100);
+    this.fadeInterval = setInterval(async () => {
+      currentVolume += step;
+      if (currentVolume >= targetVolume) {
+        currentVolume = targetVolume;
+        clearInterval(this.fadeInterval);
+        this.fadeInterval = null;
+      }
+      await this.setVolume(Math.round(currentVolume));
+    }, 100);
+  }
+  async fadeOut(ms) {
+    if (this.fadeInterval) clearInterval(this.fadeInterval);
+    const startVolume = this.volume;
+    let currentVolume = startVolume;
+    const step = startVolume / (ms / 100);
+    this.fadeInterval = setInterval(async () => {
+      currentVolume -= step;
+      if (currentVolume <= 0) {
+        currentVolume = 0;
+        clearInterval(this.fadeInterval);
+        this.fadeInterval = null;
+      }
+      await this.setVolume(Math.round(currentVolume));
+    }, 100);
   }
   async setFilters(filters) {
     await this.node.rest.updatePlayer(this.guildId, { filters });
     this.filters = { ...this.filters, ...filters };
   }
+  async clearFilters() {
+    await this.node.rest.updatePlayer(this.guildId, {
+      filters: {
+        equalizer: [],
+        timescale: null,
+        karaoke: null,
+        tremolo: null,
+        vibrato: null,
+        rotation: null,
+        distortion: null,
+        channelMix: null,
+        lowPass: null
+      }
+    });
+    this.filters = {};
+  }
+  async setEQ(bands) {
+    await this.setFilters({ equalizer: bands });
+  }
   async setAudioOutput(output) {
-    const channelMix = {
-      leftToLeft: 1,
-      leftToRight: 0,
-      rightToLeft: 0,
-      rightToRight: 1
-    };
-    if (output === "left") {
-      channelMix.rightToLeft = 1;
-      channelMix.rightToRight = 0;
-    } else if (output === "right") {
-      channelMix.leftToLeft = 0;
-      channelMix.leftToRight = 1;
-    } else if (output === "mono") {
-      channelMix.leftToRight = 1;
-      channelMix.rightToLeft = 1;
+    if (output === "left") await this.balance(1, 0);
+    else if (output === "right") await this.balance(0, 1);
+    else if (output === "mono") await this.mono();
+    else if (output === "stereo") await this.stereo();
+  }
+  async balance(left, right) {
+    await this.setFilters({
+      channelMix: {
+        leftToLeft: left,
+        leftToRight: 1 - left,
+        rightToLeft: 1 - right,
+        rightToRight: right
+      }
+    });
+  }
+  async mono() {
+    await this.setFilters({
+      channelMix: {
+        leftToLeft: 0.5,
+        leftToRight: 0.5,
+        rightToLeft: 0.5,
+        rightToRight: 0.5
+      }
+    });
+  }
+  async stereo() {
+    await this.setFilters({
+      channelMix: {
+        leftToLeft: 1,
+        leftToRight: 0,
+        rightToLeft: 0,
+        rightToRight: 1
+      }
+    });
+  }
+  async bassboost(level = 1) {
+    const gains = [0.2, 0.4, 0.6, 0.8, 1];
+    const gain = gains[Math.min(level, gains.length) - 1] || 0.6;
+    await this.setFilters({
+      equalizer: [
+        { band: 0, gain },
+        { band: 1, gain: gain * 0.8 },
+        { band: 2, gain: gain * 0.5 }
+      ]
+    });
+  }
+  async nightcore() {
+    await this.setFilters({ timescale: { speed: 1.1, pitch: 1.2, rate: 1 } });
+  }
+  async vaporwave() {
+    await this.setFilters({ timescale: { speed: 0.85, pitch: 0.8 } });
+  }
+  async autoplay() {
+    const queue = this.node.client.queue.get(this.guildId);
+    queue.autoplay = !queue.autoplay;
+    return queue.autoplay;
+  }
+  async autoRecover() {
+    this.options.autoRecover = !this.options.autoRecover;
+  }
+  async autoResume() {
+    this.options.autoResume = !this.options.autoResume;
+  }
+  async preloadNext() {
+    const queue = this.node.client.queue.get(this.guildId);
+    const next = queue.tracks[0];
+    if (next && isUnresolvedTrack(next)) {
+      await next.resolve(this);
     }
-    await this.setFilters({ channelMix });
   }
   async moveToNode(toNode) {
     if (this.node === toNode) return;
@@ -408,35 +527,37 @@ var Player = class {
       const queue = this.node.client.queue.get(this.guildId);
       if (await queue.next()) {
         await this.play();
-      } else if (queue.autoplay && queue.previous.length > 0) {
-        await this.handleAutoplay(queue.previous[queue.previous.length - 1]);
+      } else if (queue.autoplay) {
+        const last = await queue.history.last();
+        if (last) await this.handleAutoplay(last);
+        else this.node.client.events.emit("queueEnd", this);
       } else {
         this.node.client.events.emit("queueEnd", this);
       }
     }
   }
   async handleAutoplay(lastTrack) {
-    const source = lastTrack.info.sourceName;
+    const source = lastTrack.source;
     let query = "";
     if (source === "youtube") {
-      query = `https://www.youtube.com/watch?v=${lastTrack.info.identifier}&list=RD${lastTrack.info.identifier}`;
+      query = `https://www.youtube.com/watch?v=${lastTrack.uri.split("v=")[1] || lastTrack.uri}&list=RD${lastTrack.uri.split("v=")[1] || lastTrack.uri}`;
     } else if (source === "spotify") {
-      query = `sprec:${lastTrack.info.identifier}`;
+      query = `sprec:${lastTrack.uri}`;
     } else if (source === "deezer") {
-      query = `dzrec:${lastTrack.info.identifier}`;
+      query = `dzrec:${lastTrack.uri}`;
     } else if (source === "apple-music") {
-      query = `amrec:${lastTrack.info.identifier}`;
+      query = `amrec:${lastTrack.uri}`;
     } else {
       const defaultSearch = this.node.client.options.defaultSearchPlatform || "ytsearch";
-      query = `${defaultSearch}:${lastTrack.info.author} ${lastTrack.info.title} related`;
+      query = `${defaultSearch}:${lastTrack.author} ${lastTrack.title} related`;
     }
     let res = await this.node.client.src.resolve(query);
     if ((!res || !res.tracks.length) && query.includes("rec:")) {
       const defaultSearch = this.node.client.options.defaultSearchPlatform || "ytsearch";
-      res = await this.node.client.src.resolve(`${defaultSearch}:${lastTrack.info.author} ${lastTrack.info.title} related`);
+      res = await this.node.client.src.resolve(`${defaultSearch}:${lastTrack.author} ${lastTrack.title} related`);
     }
     if (res && res.tracks.length > 0) {
-      const track = res.tracks.find((t) => t.info?.identifier !== lastTrack.info.identifier) || res.tracks[0];
+      const track = res.tracks.find((t) => t.info?.uri !== lastTrack.uri) || res.tracks[0];
       const queue = this.node.client.queue.get(this.guildId);
       await queue.add(track);
       await this.play();
@@ -504,6 +625,69 @@ var PlayMan = class {
   }
 };
 
+// src/History.ts
+var MemoryHistoryStore = class {
+  stores = /* @__PURE__ */ new Map();
+  async get(guildId) {
+    return this.stores.get(guildId) || [];
+  }
+  async push(guildId, metadata) {
+    const history = this.stores.get(guildId) || [];
+    history.push(metadata);
+    this.stores.set(guildId, history);
+  }
+  async clear(guildId) {
+    this.stores.delete(guildId);
+  }
+};
+var History = class {
+  guildId;
+  store;
+  maxLimit;
+  constructor(guildId, options = {}) {
+    this.guildId = guildId;
+    this.store = options.store || new MemoryHistoryStore();
+    this.maxLimit = options.maxLimit || 30;
+  }
+  async push(track) {
+    if (!track.info) return;
+    const metadata = {
+      title: track.info.title,
+      author: track.info.author,
+      uri: track.info.uri,
+      length: track.info.length,
+      source: track.src,
+      time: Date.now(),
+      requester: track.requester
+    };
+    const history = await this.store.get(this.guildId);
+    if (history.length > 0 && history[history.length - 1].uri === metadata.uri) return;
+    history.push(metadata);
+    if (history.length > this.maxLimit) {
+      history.shift();
+    }
+    await this.store.clear(this.guildId);
+    for (const item of history) {
+      await this.store.push(this.guildId, item);
+    }
+  }
+  async get(max) {
+    const history = await this.store.get(this.guildId);
+    return history.slice(-(max || this.maxLimit));
+  }
+  async clear() {
+    await this.store.clear(this.guildId);
+  }
+  async last() {
+    const history = await this.store.get(this.guildId);
+    return history.length > 0 ? history[history.length - 1] : null;
+  }
+  async size() {
+    const history = await this.store.get(this.guildId);
+    return history.length;
+  }
+};
+
 // src/Queue.ts
 var LoopMode = /* @__PURE__ */ ((LoopMode2) => {
   LoopMode2["None"] = "none";
@@ -526,14 +710,15 @@ var MemoryQueueStore = class {
 var Queue = class {
   tracks = [];
   current = null;
-  previous = [];
+  history;
   loop = "none" /* None */;
   autoplay = false;
   store;
   guildId;
-  constructor(guildId, store = new MemoryQueueStore()) {
+  constructor(guildId, options = {}) {
     this.guildId = guildId;
-    this.store = store;
+    this.store = options.store || new MemoryQueueStore();
+    this.history = new History(guildId, { store: options.historyStore });
   }
   async add(track) {
     if (Array.isArray(track)) {
@@ -551,13 +736,26 @@ var Queue = class {
     }
     await this.save();
   }
+  async addNext(track) {
+    if (Array.isArray(track)) {
+      this.tracks.unshift(...track);
+    } else {
+      this.tracks.unshift(track);
+    }
+    await this.save();
+  }
+  async insert(index, track) {
+    if (index < 0) index = 0;
+    if (index > this.tracks.length) index = this.tracks.length;
+    this.tracks.splice(index, 0, track);
+    await this.save();
+  }
   async next() {
     if (this.current) {
       if (this.loop === "track" /* Track */) {
         return true;
       }
-      this.previous.push(this.current);
-      if (this.previous.length > 100) this.previous.shift();
+      await this.history.push(this.current);
       if (this.loop === "queue" /* Queue */) {
         this.tracks.push(this.current);
       }
@@ -575,6 +773,51 @@ var Queue = class {
   async skip() {
     return this.next();
   }
+  async jump(index) {
+    if (index < 0 || index >= this.tracks.length) return null;
+    if (this.current) {
+      await this.history.push(this.current);
+    }
+    const skipped = this.tracks.splice(0, index + 1);
+    const next = skipped.pop();
+    if ("resolve" in next) {
+      this.tracks.unshift(next);
+      this.current = null;
+    } else {
+      this.current = next;
+    }
+    await this.save();
+    return this.current;
+  }
+  async previous() {
+    const last = await this.history.last();
+    if (!last) return null;
+    return last;
+  }
+  async move(from, to) {
+    if (from < 0 || from >= this.tracks.length) return;
+    if (to < 0) to = 0;
+    if (to >= this.tracks.length) to = this.tracks.length - 1;
+    const track = this.tracks.splice(from, 1)[0];
+    this.tracks.splice(to, 0, track);
+    await this.save();
+  }
+  async swap(i1, i2) {
+    if (i1 < 0 || i1 >= this.tracks.length) return;
+    if (i2 < 0 || i2 >= this.tracks.length) return;
+    [this.tracks[i1], this.tracks[i2]] = [this.tracks[i2], this.tracks[i1]];
+    await this.save();
+  }
+  async dedupe() {
+    const seen = /* @__PURE__ */ new Set();
+    this.tracks = this.tracks.filter((t) => {
+      const id = t.track || t.info?.uri;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    await this.save();
+  }
   async shuffle() {
     for (let i = this.tracks.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -585,7 +828,7 @@ var Queue = class {
   async clear() {
     this.tracks = [];
     this.current = null;
-    this.previous = [];
+    await this.history.clear();
     await this.save();
   }
   async remove(index) {
@@ -602,7 +845,6 @@ var Queue = class {
   async save() {
     await this.store.set(this.guildId, {
       current: this.current,
-      previous: this.previous,
       tracks: this.tracks
     });
   }
@@ -610,7 +852,6 @@ var Queue = class {
     const data = await this.store.get(this.guildId);
     if (data) {
       this.current = data.current;
-      this.previous = data.previous;
       this.tracks = data.tracks;
     }
   }
@@ -678,6 +919,21 @@ var SrcMan = class {
       default:
         return { type: "error", tracks: [] };
     }
+  }
+  detectSource(url) {
+    if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube";
+    if (url.includes("spotify.com")) return "spotify";
+    if (url.includes("deezer.com")) return "deezer";
+    if (url.includes("apple.com")) return "apple-music";
+    if (url.includes("soundcloud.com")) return "soundcloud";
+    return "unknown";
+  }
+  async fallbackSearch(query, requester) {
+    const defaultSearch = this.client.options.defaultSearchPlatform || "ytsearch";
+    return this.resolve(`${defaultSearch}:${query}`, requester);
+  }
+  async bestSource(track) {
+    return track;
   }
   createUnresolved(query, requester) {
     const track = {
@@ -842,7 +1098,9 @@ export {
   Client,
   DestroyReason,
   EvtMan,
+  History,
   LoopMode,
+  MemoryHistoryStore,
   MemoryQueueStore,
   Node,
   NodeMan,

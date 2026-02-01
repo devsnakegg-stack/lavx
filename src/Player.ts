@@ -29,6 +29,19 @@ export class Player {
   };
   public volume: number = 100;
   public filters: any = {};
+  public options: {
+      autoRecover: boolean;
+      autoResume: boolean;
+      gapless: boolean;
+      smartBuffer: boolean;
+  } = {
+      autoRecover: false,
+      autoResume: false,
+      gapless: false,
+      smartBuffer: false,
+  };
+
+  private fadeInterval: NodeJS.Timeout | null = null;
 
   constructor(node: Node, guildId: string) {
     this.node = node;
@@ -83,9 +96,57 @@ export class Player {
     await this.node.rest.updatePlayer(this.guildId, { position });
   }
 
+  public async rewind(ms: number) {
+      const newPos = Math.max(0, this.state.position - ms);
+      await this.seek(newPos);
+  }
+
+  public async forward(ms: number) {
+      await this.seek(this.state.position + ms);
+  }
+
+  public async restart() {
+      await this.seek(0);
+  }
+
   public async setVolume(volume: number) {
     await this.node.rest.updatePlayer(this.guildId, { volume });
     this.volume = volume;
+  }
+
+  public async fadeIn(ms: number) {
+      if (this.fadeInterval) clearInterval(this.fadeInterval);
+      const targetVolume = this.volume;
+      let currentVolume = 0;
+      await this.setVolume(currentVolume);
+
+      const step = targetVolume / (ms / 100);
+      this.fadeInterval = setInterval(async () => {
+          currentVolume += step;
+          if (currentVolume >= targetVolume) {
+              currentVolume = targetVolume;
+              clearInterval(this.fadeInterval!);
+              this.fadeInterval = null;
+          }
+          await this.setVolume(Math.round(currentVolume));
+      }, 100);
+  }
+
+  public async fadeOut(ms: number) {
+      if (this.fadeInterval) clearInterval(this.fadeInterval);
+      const startVolume = this.volume;
+      let currentVolume = startVolume;
+
+      const step = startVolume / (ms / 100);
+      this.fadeInterval = setInterval(async () => {
+          currentVolume -= step;
+          if (currentVolume <= 0) {
+              currentVolume = 0;
+              clearInterval(this.fadeInterval!);
+              this.fadeInterval = null;
+          }
+          await this.setVolume(Math.round(currentVolume));
+      }, 100);
   }
 
   public async setFilters(filters: any) {
@@ -93,26 +154,107 @@ export class Player {
     this.filters = { ...this.filters, ...filters };
   }
 
+  public async clearFilters() {
+      await this.node.rest.updatePlayer(this.guildId, {
+          filters: {
+              equalizer: [],
+              timescale: null,
+              karaoke: null,
+              tremolo: null,
+              vibrato: null,
+              rotation: null,
+              distortion: null,
+              channelMix: null,
+              lowPass: null
+          }
+      });
+      this.filters = {};
+  }
+
+  public async setEQ(bands: { band: number; gain: number }[]) {
+      await this.setFilters({ equalizer: bands });
+  }
+
   public async setAudioOutput(output: 'left' | 'right' | 'mono' | 'stereo') {
-    const channelMix: any = {
-      leftToLeft: 1.0,
-      leftToRight: 0.0,
-      rightToLeft: 0.0,
-      rightToRight: 1.0,
-    };
+    if (output === 'left') await this.balance(1.0, 0.0);
+    else if (output === 'right') await this.balance(0.0, 1.0);
+    else if (output === 'mono') await this.mono();
+    else if (output === 'stereo') await this.stereo();
+  }
 
-    if (output === 'left') {
-      channelMix.rightToLeft = 1.0;
-      channelMix.rightToRight = 0.0;
-    } else if (output === 'right') {
-      channelMix.leftToLeft = 0.0;
-      channelMix.leftToRight = 1.0;
-    } else if (output === 'mono') {
-      channelMix.leftToRight = 1.0;
-      channelMix.rightToLeft = 1.0;
-    }
+  public async balance(left: number, right: number) {
+      await this.setFilters({
+          channelMix: {
+              leftToLeft: left,
+              leftToRight: 1.0 - left,
+              rightToLeft: 1.0 - right,
+              rightToRight: right,
+          }
+      });
+  }
 
-    await this.setFilters({ channelMix });
+  public async mono() {
+      await this.setFilters({
+          channelMix: {
+              leftToLeft: 0.5,
+              leftToRight: 0.5,
+              rightToLeft: 0.5,
+              rightToRight: 0.5,
+          }
+      });
+  }
+
+  public async stereo() {
+      await this.setFilters({
+          channelMix: {
+              leftToLeft: 1.0,
+              leftToRight: 0.0,
+              rightToLeft: 0.0,
+              rightToRight: 1.0,
+          }
+      });
+  }
+
+  public async bassboost(level: number = 1) {
+      const gains = [0.2, 0.4, 0.6, 0.8, 1.0];
+      const gain = gains[Math.min(level, gains.length) - 1] || 0.6;
+      await this.setFilters({
+          equalizer: [
+              { band: 0, gain },
+              { band: 1, gain: gain * 0.8 },
+              { band: 2, gain: gain * 0.5 }
+          ]
+      });
+  }
+
+  public async nightcore() {
+      await this.setFilters({ timescale: { speed: 1.1, pitch: 1.2, rate: 1.0 } });
+  }
+
+  public async vaporwave() {
+      await this.setFilters({ timescale: { speed: 0.85, pitch: 0.8 } });
+  }
+
+  public async autoplay() {
+      const queue = this.node.client.queue.get(this.guildId);
+      queue.autoplay = !queue.autoplay;
+      return queue.autoplay;
+  }
+
+  public async autoRecover() {
+      this.options.autoRecover = !this.options.autoRecover;
+  }
+
+  public async autoResume() {
+      this.options.autoResume = !this.options.autoResume;
+  }
+
+  public async preloadNext() {
+      const queue = this.node.client.queue.get(this.guildId);
+      const next = queue.tracks[0];
+      if (next && isUnresolvedTrack(next)) {
+          await next.resolve(this);
+      }
   }
 
   public async moveToNode(toNode: Node) {
@@ -160,8 +302,10 @@ export class Player {
       const queue = this.node.client.queue.get(this.guildId);
       if (await queue.next()) {
         await this.play();
-      } else if (queue.autoplay && queue.previous.length > 0) {
-        await this.handleAutoplay(queue.previous[queue.previous.length - 1]);
+      } else if (queue.autoplay) {
+          const last = await queue.history.last();
+          if (last) await this.handleAutoplay(last);
+          else this.node.client.events.emit('queueEnd', this);
       } else {
         this.node.client.events.emit('queueEnd', this);
       }
@@ -169,31 +313,31 @@ export class Player {
   }
 
   private async handleAutoplay(lastTrack: any) {
-    const source = lastTrack.info.sourceName;
+    const source = lastTrack.source;
     let query = '';
 
     if (source === 'youtube') {
-      query = `https://www.youtube.com/watch?v=${lastTrack.info.identifier}&list=RD${lastTrack.info.identifier}`;
+      query = `https://www.youtube.com/watch?v=${lastTrack.uri.split('v=')[1] || lastTrack.uri}&list=RD${lastTrack.uri.split('v=')[1] || lastTrack.uri}`;
     } else if (source === 'spotify') {
-      query = `sprec:${lastTrack.info.identifier}`;
+      query = `sprec:${lastTrack.uri}`;
     } else if (source === 'deezer') {
-      query = `dzrec:${lastTrack.info.identifier}`;
+      query = `dzrec:${lastTrack.uri}`;
     } else if (source === 'apple-music') {
-      query = `amrec:${lastTrack.info.identifier}`;
+      query = `amrec:${lastTrack.uri}`;
     } else {
       const defaultSearch = this.node.client.options.defaultSearchPlatform || 'ytsearch';
-      query = `${defaultSearch}:${lastTrack.info.author} ${lastTrack.info.title} related`;
+      query = `${defaultSearch}:${lastTrack.author} ${lastTrack.title} related`;
     }
 
     let res = await this.node.client.src.resolve(query);
 
     if ((!res || !res.tracks.length) && query.includes('rec:')) {
       const defaultSearch = this.node.client.options.defaultSearchPlatform || 'ytsearch';
-      res = await this.node.client.src.resolve(`${defaultSearch}:${lastTrack.info.author} ${lastTrack.info.title} related`);
+      res = await this.node.client.src.resolve(`${defaultSearch}:${lastTrack.author} ${lastTrack.title} related`);
     }
 
     if (res && res.tracks.length > 0) {
-      const track = res.tracks.find(t => t.info?.identifier !== lastTrack.info.identifier) || res.tracks[0];
+      const track = res.tracks.find(t => t.info?.uri !== lastTrack.uri) || res.tracks[0];
       const queue = this.node.client.queue.get(this.guildId);
       await queue.add(track);
       await this.play();

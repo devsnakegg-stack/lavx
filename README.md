@@ -14,9 +14,9 @@
 - 🧩 **Manager-Driven**: Clean separation of concerns (Nodes, Players, Queues, Sources).
 - 🌍 **Multiplatform**: Built-in routing for YouTube, Spotify, Deezer, Apple Music, and more via Lavalink plugins.
 - ⚡ **Performance**: Native dual ESM/CJS support, zero-dependency core (using standard `ws` and `undici`).
-- 🎧 **Advanced Audio**: 15+ filter presets (Bassboost, Nightcore, etc.) and custom audio output mixing.
+- 🎧 **Advanced Audio**: 15+ filter presets (Bassboost, Nightcore, etc.), fade effects, and custom audio balance.
 - 🔄 **Failover & Migration**: Automatic node load balancing and manual player migration.
-- 📜 **Queue System**: Robust history tracking, autoplay, and multiple loop modes.
+- 📜 **Queue System**: Advanced control (jump, move, swap, dedupe), ring-buffer history, and smart autoplay.
 - 🛡 **Type Safe**: Written entirely in TypeScript with full type definitions.
 
 ---
