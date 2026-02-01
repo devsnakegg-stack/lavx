@@ -6,6 +6,7 @@ export interface ResolveResult {
   type: 'track' | 'playlist' | 'search' | 'error';
   tracks: Track[];
   playlistName?: string;
+  playlistArtworkUrl?: string;
 }
 
 export class SrcMan {
@@ -42,6 +43,7 @@ export class SrcMan {
           type: 'playlist',
           tracks: data.data.tracks.map((t: any) => this.mapTrack(t)),
           playlistName: data.data.info.name,
+          playlistArtworkUrl: data.data.pluginInfo?.artworkUrl || data.data.info?.artworkUrl,
         };
       case 'search':
         return { type: 'search', tracks: data.data.map((t: any) => this.mapTrack(t)) };
@@ -67,6 +69,16 @@ export class SrcMan {
     // Ensure duration is present in info
     if (data.info && !data.info.duration && data.info.length) {
       data.info.duration = data.info.length;
+    }
+
+    // Capture artwork if in pluginInfo but not info
+    if (data.info && !data.info.artworkUrl && data.pluginInfo?.artworkUrl) {
+      data.info.artworkUrl = data.pluginInfo.artworkUrl;
+    }
+
+    // captue artwork from some plugins that put it in a different place
+    if (data.info && !data.info.artworkUrl && data.info.image) {
+        data.info.artworkUrl = data.info.image;
     }
 
     return {

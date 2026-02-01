@@ -365,10 +365,27 @@ var Player = class {
     }
   }
   async handleAutoplay(lastTrack) {
-    const query = `https://www.youtube.com/watch?v=${lastTrack.info.identifier}&list=RD${lastTrack.info.identifier}`;
-    const res = await this.node.client.src.resolve(query);
-    if (res && res.tracks.length > 1) {
-      const track = res.tracks.find((t) => t.info.identifier !== lastTrack.info.identifier) || res.tracks[1];
+    const source = lastTrack.info.sourceName;
+    let query = "";
+    if (source === "youtube") {
+      query = `https://www.youtube.com/watch?v=${lastTrack.info.identifier}&list=RD${lastTrack.info.identifier}`;
+    } else if (source === "spotify") {
+      query = `sprec:${lastTrack.info.identifier}`;
+    } else if (source === "deezer") {
+      query = `dzrec:${lastTrack.info.identifier}`;
+    } else if (source === "apple-music") {
+      query = `amrec:${lastTrack.info.identifier}`;
+    } else {
+      const defaultSearch = this.node.client.options.defaultSearchPlatform || "ytsearch";
+      query = `${defaultSearch}:${lastTrack.info.author} ${lastTrack.info.title} related`;
+    }
+    let res = await this.node.client.src.resolve(query);
+    if ((!res || !res.tracks.length) && query.includes("rec:")) {
+      const defaultSearch = this.node.client.options.defaultSearchPlatform || "ytsearch";
+      res = await this.node.client.src.resolve(`${defaultSearch}:${lastTrack.info.author} ${lastTrack.info.title} related`);
+    }
+    if (res && res.tracks.length > 0) {
+      const track = res.tracks.find((t) => t.info.identifier !== lastTrack.info.identifier) || res.tracks[0];
       const queue = this.node.client.queue.get(this.guildId);
       queue.add(track);
       await this.play();
@@ -529,7 +546,8 @@ var SrcMan = class {
         return {
           type: "playlist",
           tracks: data.data.tracks.map((t) => this.mapTrack(t)),
-          playlistName: data.data.info.name
+          playlistName: data.data.info.name,
+          playlistArtworkUrl: data.data.pluginInfo?.artworkUrl || data.data.info?.artworkUrl
         };
       case "search":
         return { type: "search", tracks: data.data.map((t) => this.mapTrack(t)) };
@@ -552,6 +570,12 @@ var SrcMan = class {
   mapTrack(data) {
     if (data.info && !data.info.duration && data.info.length) {
       data.info.duration = data.info.length;
+    }
+    if (data.info && !data.info.artworkUrl && data.pluginInfo?.artworkUrl) {
+      data.info.artworkUrl = data.pluginInfo.artworkUrl;
+    }
+    if (data.info && !data.info.artworkUrl && data.info.image) {
+      data.info.artworkUrl = data.info.image;
     }
     return {
       track: data.encoded,

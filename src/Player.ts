@@ -125,11 +125,33 @@ export class Player {
   }
 
   private async handleAutoplay(lastTrack: any) {
-    const query = `https://www.youtube.com/watch?v=${lastTrack.info.identifier}&list=RD${lastTrack.info.identifier}`;
-    const res = await this.node.client.src.resolve(query);
-    if (res && res.tracks.length > 1) {
-      // Add the second track (first is usually the same one)
-      const track = res.tracks.find(t => t.info.identifier !== lastTrack.info.identifier) || res.tracks[1];
+    const source = lastTrack.info.sourceName;
+    let query = '';
+
+    if (source === 'youtube') {
+      query = `https://www.youtube.com/watch?v=${lastTrack.info.identifier}&list=RD${lastTrack.info.identifier}`;
+    } else if (source === 'spotify') {
+      query = `sprec:${lastTrack.info.identifier}`;
+    } else if (source === 'deezer') {
+      query = `dzrec:${lastTrack.info.identifier}`;
+    } else if (source === 'apple-music') {
+      query = `amrec:${lastTrack.info.identifier}`;
+    } else {
+      const defaultSearch = this.node.client.options.defaultSearchPlatform || 'ytsearch';
+      query = `${defaultSearch}:${lastTrack.info.author} ${lastTrack.info.title} related`;
+    }
+
+    let res = await this.node.client.src.resolve(query);
+
+    // Fallback if specific recommendation fails
+    if ((!res || !res.tracks.length) && query.includes('rec:')) {
+      const defaultSearch = this.node.client.options.defaultSearchPlatform || 'ytsearch';
+      res = await this.node.client.src.resolve(`${defaultSearch}:${lastTrack.info.author} ${lastTrack.info.title} related`);
+    }
+
+    if (res && res.tracks.length > 0) {
+      // Find a track that is not the same as the last one if possible
+      const track = res.tracks.find(t => t.info.identifier !== lastTrack.info.identifier) || res.tracks[0];
       const queue = this.node.client.queue.get(this.guildId);
       queue.add(track);
       await this.play();

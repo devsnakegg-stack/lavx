@@ -59,9 +59,15 @@ client.on('messageCreate', async (message: Message) => {
     if (!res) return message.reply('No results found');
 
     if (res.type === 'playlist') {
-      message.reply(`Loaded playlist **${res.playlistName}** with ${res.tracks.length} tracks\nURL: ${res.tracks[0].info.uri}`);
+      message.reply({
+        content: `Loaded playlist **${res.playlistName}** with ${res.tracks.length} tracks\nURL: ${res.tracks[0].info.uri}`,
+        files: res.playlistArtworkUrl ? [res.playlistArtworkUrl] : []
+      });
     } else {
-      message.reply(`Added to queue: **${res.tracks[0].info.title}**\nURL: ${res.tracks[0].info.uri}`);
+      message.reply({
+        content: `Added to queue: **${res.tracks[0].info.title}**\nURL: ${res.tracks[0].info.uri}`,
+        files: res.tracks[0].info.artworkUrl ? [res.tracks[0].info.artworkUrl] : []
+      });
     }
   }
 
@@ -125,7 +131,13 @@ client.on('messageCreate', async (message: Message) => {
 
   if (command === 'autoplay') {
     queue.autoplay = !queue.autoplay;
-    message.reply(`Autoplay is now ${queue.autoplay ? 'enabled' : 'disabled'}`);
+    const platform = args[0];
+    if (platform) {
+        lavx.options.defaultSearchPlatform = platform;
+        message.reply(`Autoplay is now ${queue.autoplay ? 'enabled' : 'disabled'} using platform \`${platform}\``);
+    } else {
+        message.reply(`Autoplay is now ${queue.autoplay ? 'enabled' : 'disabled'}`);
+    }
   }
 
   if (command === 'filter') {

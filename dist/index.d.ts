@@ -29,6 +29,7 @@ interface ResolveResult {
     type: 'track' | 'playlist' | 'search' | 'error';
     tracks: Track[];
     playlistName?: string;
+    playlistArtworkUrl?: string;
 }
 declare class SrcMan {
     readonly client: Client;
