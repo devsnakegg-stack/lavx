@@ -83,8 +83,12 @@ export class Client {
     }
   }
 
+  public async search(query: string, platform?: string, requester?: any) {
+    return this.src.search(query, platform, requester);
+  }
+
   public async playInput(guildId: string, input: string, requester?: any) {
-    const resolved = await this.src.resolve(input);
+    const resolved = await this.src.resolve(input, requester);
     if (!resolved || !resolved.tracks.length) return null;
 
     const player = this.play.get(guildId) || this.play.create({ guildId });
@@ -92,10 +96,10 @@ export class Client {
 
     if (resolved.type === 'playlist') {
       for (const track of resolved.tracks) {
-        queue.add({ ...track, requester });
+        queue.add(track);
       }
     } else {
-      queue.add({ ...resolved.tracks[0], requester });
+      queue.add(resolved.tracks[0]);
     }
 
     if (!player.playing && !player.paused && queue.current) {

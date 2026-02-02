@@ -51,6 +51,7 @@ interface ResolveResult {
 declare class SrcManager {
     readonly client: Client;
     constructor(client: Client);
+    search(query: string, platform?: string, requester?: any): Promise<ResolveResult>;
     resolve(input: string, requester?: any): Promise<ResolveResult>;
     detectSource(url: string): string;
     fallbackSearch(query: string, requester?: any): Promise<ResolveResult>;
@@ -466,6 +467,7 @@ declare class Client {
     constructor(discord: Client$1, options: LavxOptions);
     private init;
     sendGatewayPayload(guildId: string, payload: any): void;
+    search(query: string, platform?: string, requester?: any): Promise<ResolveResult>;
     playInput(guildId: string, input: string, requester?: any): Promise<ResolveResult | null>;
 }
 

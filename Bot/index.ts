@@ -210,6 +210,45 @@ client.on('messageCreate', async (message: Message) => {
       message.reply(`Moved from <#${oldChannelId}> to <#${newChannelId}>`);
   }
 
+  if (command === 'search') {
+      const query = args.join(' ');
+      if (!query) return message.reply('Please provide a search query');
+
+      const res = await lavx.search(query, 'ytsearch', message.author);
+      if (!res || !res.tracks.length) return message.reply('No results found');
+
+      const results = res.tracks.slice(0, 10);
+      const list = results.map((t, i) => `${i + 1}. **${t.info?.title}** by ${t.info?.author}`).join('\n');
+
+      const embed = new EmbedBuilder()
+          .setTitle(`Search results for: ${query}`)
+          .setDescription(list + '\n\nReply with a number to play.');
+
+      const msg = await message.reply({ embeds: [embed] });
+
+      const collector = (message.channel as any).createMessageCollector({
+          filter: (m: any) => m.author.id === message.author.id && !isNaN(parseInt(m.content)),
+          time: 30000,
+          max: 1
+      });
+
+      collector.on('collect', async (m: any) => {
+          const index = parseInt(m.content) - 1;
+          if (index >= 0 && index < results.length) {
+              const vc = message.member?.voice.channel;
+              if (!vc) return;
+
+              const p = lavx.play.get(message.guild!.id) || lavx.play.create({ guildId: message.guild!.id });
+              if (!p.state.connected) await p.connect(vc.id);
+
+              queue.add(results[index]);
+              if (!p.playing && !p.paused) await p.play();
+
+              m.reply(`Selected: **${results[index].info?.title}**`);
+          }
+      });
+  }
+
   if (command === 'jump') {
       if (!player) return message.reply('No player found');
       const index = parseInt(args[0]);

@@ -23,6 +23,9 @@ The main entry point of the library.
 #### `playInput(guildId: string, input: string, requester?: any)`
 Resolves an input and automatically starts playback if the queue was empty.
 
+#### `search(query: string, platform?: string, requester?: any)`
+Searches for tracks on a specific platform (default: ytsearch). Returns a `ResolveResult`.
+
 ---
 
 ### Player API (`client.play`)
@@ -92,6 +95,7 @@ Resolves an input and automatically starts playback if the queue was empty.
 ### Source Management (`client.src`)
 
 - `resolve(input)`: Resolve query/URL.
+- `search(query, platform?, requester?)`: Search with specific platform prefix.
 - `detectSource(url)`: Detect platform from URL.
 - `fallbackSearch(query)`: Search using default platform.
 - `bestSource(track)`: Find best quality source.

@@ -15,6 +15,11 @@ export class SrcManager {
     this.client = client;
   }
 
+  public async search(query: string, platform?: string, requester?: any): Promise<ResolveResult> {
+    const prefix = platform || this.client.options.defaultSearchPlatform || 'ytsearch';
+    return this.resolve(`${prefix}:${query}`, requester);
+  }
+
   public async resolve(input: string, requester?: any): Promise<ResolveResult> {
     if (!this.validateInput(input)) {
         return { type: 'error', tracks: [] };
@@ -26,8 +31,11 @@ export class SrcManager {
     let identifier = input;
 
     if (!this.isUrl(input)) {
-      const defaultSearch = this.client.options.defaultSearchPlatform || 'ytsearch';
-      identifier = `${defaultSearch}:${input}`;
+      const hasPrefix = /^[a-z]+search:/.test(input) || /^[a-z]+rec:/.test(input) || input.includes(':');
+      if (!hasPrefix) {
+        const defaultSearch = this.client.options.defaultSearchPlatform || 'ytsearch';
+        identifier = `${defaultSearch}:${input}`;
+      }
     }
 
     let data: any = await node.rest.loadTracks(identifier);
@@ -62,7 +70,7 @@ export class SrcManager {
       if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube';
       if (url.includes('spotify.com')) return 'spotify';
       if (url.includes('deezer.com')) return 'deezer';
-      if (url.includes('apple.com')) return 'apple-music';
+      if (url.includes('apple.com')) return 'applemusic';
       if (url.includes('soundcloud.com')) return 'soundcloud';
       return 'unknown';
   }

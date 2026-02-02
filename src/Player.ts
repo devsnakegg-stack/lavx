@@ -322,7 +322,7 @@ export class Player {
       query = `sprec:${lastTrack.uri}`;
     } else if (source === 'deezer') {
       query = `dzrec:${lastTrack.uri}`;
-    } else if (source === 'apple-music') {
+    } else if (source === 'apple-music' || source === 'applemusic') {
       query = `amrec:${lastTrack.uri}`;
     } else {
       const defaultSearch = this.node.client.options.defaultSearchPlatform || 'ytsearch';

@@ -12,7 +12,7 @@
 
 - 🎯 **Discord.js Only**: Optimized for the most popular Discord library.
 - 🧩 **Manager-Driven**: Clean separation of concerns (Nodes, Players, Queues, Sources).
-- 🌍 **Multiplatform**: Built-in routing for YouTube, Spotify, Deezer, Apple Music, and more via Lavalink plugins.
+- 🌍 **Multiplatform**: Unified search API and built-in routing for YouTube, Spotify, Deezer, Apple Music, and more via Lavalink plugins.
 - ⚡ **Performance**: Native dual ESM/CJS support, zero-dependency core (using standard `ws` and `undici`).
 - 🎧 **Advanced Audio**: 15+ filter presets (Bassboost, Nightcore, etc.), fade effects, and custom audio balance.
 - 🔄 **Failover & Migration**: Automatic node load balancing and manual player migration.

@@ -929,6 +929,10 @@ var SrcManager = class {
   constructor(client) {
     this.client = client;
   }
+  async search(query, platform, requester) {
+    const prefix = platform || this.client.options.defaultSearchPlatform || "ytsearch";
+    return this.resolve(`${prefix}:${query}`, requester);
+  }
   async resolve(input, requester) {
     if (!this.validateInput(input)) {
       return { type: "error", tracks: [] };
@@ -937,8 +941,11 @@ var SrcManager = class {
     if (!node) throw new Error("No available nodes");
     let identifier = input;
     if (!this.isUrl(input)) {
-      const defaultSearch = this.client.options.defaultSearchPlatform || "ytsearch";
-      identifier = `${defaultSearch}:${input}`;
+      const hasPrefix = /^[a-z]+search:/.test(input) || /^[a-z]+rec:/.test(input) || input.includes(":");
+      if (!hasPrefix) {
+        const defaultSearch = this.client.options.defaultSearchPlatform || "ytsearch";
+        identifier = `${defaultSearch}:${input}`;
+      }
     }
     let data = await node.rest.loadTracks(identifier);
     if ((data.loadType === "empty" || data.loadType === "error") && this.isUrl(input)) {
@@ -1110,17 +1117,20 @@ var Client = class {
       }
     }
   }
+  async search(query, platform, requester) {
+    return this.src.search(query, platform, requester);
+  }
   async playInput(guildId, input, requester) {
-    const resolved = await this.src.resolve(input);
+    const resolved = await this.src.resolve(input, requester);
     if (!resolved || !resolved.tracks.length) return null;
     const player = this.play.get(guildId) || this.play.create({ guildId });
     const queue = this.queue.get(guildId);
     if (resolved.type === "playlist") {
       for (const track of resolved.tracks) {
-        queue.add({ ...track, requester });
+        queue.add(track);
       }
     } else {
-      queue.add({ ...resolved.tracks[0], requester });
+      queue.add(resolved.tracks[0]);
     }
     if (!player.playing && !player.paused && queue.current) {
       await player.play();
